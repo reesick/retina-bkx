@@ -66,10 +66,10 @@ class VitWrap(nn.Module):
         x = m.norm(x)
         npfx = m.num_prefix_tokens
         cls_attn = attn[:, :, 0, npfx:].mean(1)               # [B, P]
-        g = int(round((N - npfx) ** 0.5))
+        gh, gw = m.patch_embed.grid_size
         feats = m.forward_head(x, pre_logits=True)
         logits = m.head(feats)
-        return logits, feats, cls_attn.reshape(B, g, g)
+        return logits, feats, cls_attn.reshape(B, gh, gw)
 
 
 class SigWrap(nn.Module):
