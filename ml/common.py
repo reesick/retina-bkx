@@ -30,8 +30,10 @@ def seed_all(seed: int = SEED) -> None:
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
+    # Seeded, but cuDNN autotuning is on for speed: training is reproducible in distribution, not bit-exact.
+    # Inference (ONNX Runtime on CPU) is bit-exact, which is what the product guarantees.
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.deterministic = False
 
 
 def read_rgb(path: Path | str) -> np.ndarray:

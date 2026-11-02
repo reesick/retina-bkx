@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader, Dataset
 from ml.common import RUNS, SPLITS, ensure_imagenet_tensor, qwk, read_rgb, save_json, seed_all, softmax, worker_init
 
 CFG = {
-    "cnn": {"timm": "efficientnet_b3.ra2_in1k", "size": 512, "bs": 12, "epochs": 16, "lr": 3e-4, "head_lr": 1e-3},
+    "cnn": {"timm": "efficientnet_b3.ra2_in1k", "size": 512, "bs": 8, "epochs": 14, "lr": 3e-4, "head_lr": 1e-3},
     "vit": {"timm": "vit_base_patch14_dinov2.lvd142m", "size": 448, "bs": 8, "epochs": 10, "lr": 4e-5, "head_lr": 1e-3,
             "train_blocks": 4},
 }

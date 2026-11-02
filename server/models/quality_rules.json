@@ -1,0 +1,19 @@
+{
+  "focus_min": 2.476122503845949,
+  "focus_hard_min": 0.8666428763460822,
+  "dark_mean_min": 42.06096923828125,
+  "dark_hard_min": 18.927436157226563,
+  "bright_sat_max": 0.01,
+  "uneven_max": 0.328821414672961,
+  "field_min": 0.6,
+  "field_hard_min": 0.33,
+  "redness_min": 1.05,
+  "vessel_min": 0.06171410629158444,
+  "disc_conf_min": 0.35,
+  "fovea_conf_min": 0.3,
+  "provenance": {
+    "n_adequate": 300,
+    "sources": "APTOS train + DeepDRiD train (overall quality = 1)",
+    "rule": "soft = 2nd/98th percentile of adequate images; hard = fixed fraction of soft"
+  }
+}
