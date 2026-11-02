@@ -58,18 +58,21 @@ def run(name: str, args: list[str]) -> bool:
     return rc == 0
 
 
+V1 = RUNS / "v1_aptos_only"
 STAGES = [
     # name, wait-for manifest keys, wait minutes, done-marker, module args
-    ("splits", ["aptos"], 240, ROOT / "data" / "splits" / "aptos.csv", ["ml.data.splits"]),
+    ("splits", ["aptos", "ddr:gradetrain", "deepdrid"], 240, ROOT / "data" / "splits" / "grading.csv", ["ml.data.splits"]),
     ("landmarks", ["idrid"], 1, RUNS / "landmarks" / "done.txt", ["ml.train.landmarks"]),
-    ("grader_cnn", ["aptos"], 1, RUNS / "grader_cnn" / "done.txt", ["ml.train.grader", "--arch", "cnn"]),
     ("quality", ["deepdrid"], 60, RUNS / "quality" / "done.txt", ["ml.train.quality"]),
-    ("grader_vit", ["aptos"], 1, RUNS / "grader_vit" / "done.txt", ["ml.train.grader", "--arch", "vit"]),
+    ("grader_cnn", ["ddr:gradetrain"], 240, RUNS / "grader_cnn" / "done.txt",
+     ["ml.train.grader", "--arch", "cnn", "--init", str(V1 / "grader_cnn" / "best.pt")]),
+    ("grader_vit", ["ddr:gradetrain"], 240, RUNS / "grader_vit" / "done.txt",
+     ["ml.train.grader", "--arch", "vit", "--init", str(V1 / "grader_vit" / "best.pt")]),
     ("lesions", ["ddr:seg"], 240, RUNS / "lesions" / "done.txt", ["ml.train.lesions"]),
-    ("export", [], 0, MODELS / "lesions.onnx", ["ml.export.to_onnx"]),
-    ("evaluate", ["ddr:test"], 120, MODELS / "policy.json", ["ml.eval.evaluate"]),
-    ("extras", [], 0, RUNS / "extras.done", ["ml.eval.extras"]),
-    ("demo", [], 0, ROOT / "server" / "demo" / "cases.json", ["ml.data.demo_cases"]),
+    ("export", [], 0, RUNS / "export_v2.done", ["ml.export.to_onnx"]),
+    ("evaluate", ["ddr:test"], 120, RUNS / "evaluate_v2.done", ["ml.eval.evaluate"]),
+    ("extras", [], 0, RUNS / "extras_v2.done", ["ml.eval.extras"]),
+    ("demo", [], 0, RUNS / "demo_v2.done", ["ml.data.demo_cases"]),
 ]
 
 
@@ -115,6 +118,8 @@ def main():
         if keys and not wait_for(keys, wait):
             print(f"[run_all] continuing without {keys} for {name}", flush=True)
         ok = run(name, args)
+        if ok and marker.suffix == ".done":
+            marker.write_text("ok")
         if not ok:
             print(f"[run_all] stage {name} failed; see logs/stage_{name}.log", flush=True)
             if name in ("splits", "grader_cnn", "grader_vit", "export"):

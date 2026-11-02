@@ -25,7 +25,9 @@ from torch.utils.data import DataLoader, Dataset
 
 from core.fundus import fundus_mask
 from core.quality import compute_features
-from ml.common import (MODELS_OUT, PROC, RUNS, SPLITS, ensure_imagenet_tensor, load_resume, mark_done, read_rgb,
+from sklearn.metrics import roc_auc_score
+
+from ml.common import (MODELS_OUT, PROC, RUNS, SPLITS, ensure_imagenet_tensor, load_json, load_resume, mark_done, read_rgb,
                        save_json, save_resume, seed_all, worker_init)
 
 SIZE = 384
@@ -156,12 +158,17 @@ def main():
     idr = pd.read_csv(PROC / "idrid" / "labels.csv")
     rows += [(str(PROC / "idrid" / "img" / f"{i}.jpg"), -1, -1) for i in idr[idr.split == "train"]["id"]]
     dd = PROC / "deepdrid" / "labels.csv"
+    cal_rows = []
     if dd.exists():
         d = pd.read_csv(dd)
         d = d[(d.split == "train") & d.overall_quality.isin([0, 1])]
-        real = [(str(PROC / "deepdrid" / "img" / f"{i}.jpg"), 0 if q == 1 else 2, -1) for i, q in zip(d["id"], d["overall_quality"])]
-        rows += real * 2
-        print(f"[quality] DeepDRiD real rows: {len(real)} (x2)")
+        cal = d.patient_id.astype(int) % 5 == 0          # 20% of DeepDRiD train patients held out for the cut-off
+        mk = lambda s: [(str(PROC / "deepdrid" / "img" / f"{i}.jpg"), 0 if q == 1 else 2, -1)
+                        for i, q in zip(s["id"], s["overall_quality"])]
+        real = mk(d[~cal])
+        cal_rows = mk(d[cal])
+        rows += real * 3
+        print(f"[quality] DeepDRiD real rows: {len(real)} (x3), held-out calibration patients: {len(cal_rows)} images")
     val_rows = [(p, -1, lvl) for k, p in enumerate(a[a.split == "val"]["path"]) for lvl in [k % 3]]
     dl = DataLoader(QDS(rows, True), batch_size=32, shuffle=True, num_workers=3, drop_last=True,
                     worker_init_fn=worker_init, persistent_workers=True, generator=torch.Generator().manual_seed(42))
@@ -197,15 +204,45 @@ def main():
         P, Y = np.concatenate(P), np.concatenate(Y)
         acc = float((P == Y).mean())
         bin_acc = float(((P == 2) == (Y == 2)).mean())
-        hist.append({"epoch": ep, "val_acc3": acc, "val_acc_inadequate": bin_acc})
-        print(f"[quality] ep {ep} loss {tot / len(dl):.4f} val acc3 {acc:.3f} inadequate-vs-rest {bin_acc:.3f} "
-              f"({time.time() - t0:.0f}s)", flush=True)
-        if acc > best:
-            best = acc
+        real_auc = None
+        if cal_rows:
+            pin, yb = real_scores(model, cal_rows, device)
+            real_auc = float(roc_auc_score(yb, pin))
+        score = real_auc if real_auc is not None else acc   # select on REAL labels; synthetic saturates
+        hist.append({"epoch": ep, "val_acc3": acc, "val_acc_inadequate": bin_acc, "real_auroc": real_auc})
+        print(f"[quality] ep {ep} loss {tot / len(dl):.4f} synthetic acc3 {acc:.3f} | real held-out AUROC "
+              f"{real_auc if real_auc is None else round(real_auc, 3)} ({time.time() - t0:.0f}s)", flush=True)
+        if score > best:
+            best = score
             torch.save({"state_dict": model.state_dict(), "val": hist[-1]}, out / "best.pt")
         save_json(out / "history.json", hist)
         save_resume(out, ep, objs, best, hist)
+    if cal_rows:
+        model.load_state_dict(torch.load(out / "best.pt", map_location="cpu")["state_dict"])
+        pin, yb = real_scores(model, cal_rows, device)
+        good = pin[yb == 0]
+        t = float(np.clip(np.percentile(good, 90), 0.2, 0.95))   # at most ~10% of good photos rejected
+        rules = load_json(MODELS_OUT / "quality_rules.json", {})
+        rules["model_inadequate_threshold"] = t
+        rules.setdefault("provenance", {})["model_inadequate_threshold"] = (
+            f"90th percentile of P(inadequate) on good photos of held-out DeepDRiD train patients (n={len(cal_rows)}); "
+            f"at this cut-off {float((pin[yb == 1] >= t).mean()):.2f} of poor photos are rejected")
+        save_json(MODELS_OUT / "quality_rules.json", rules)
+        print(f"[quality] model_inadequate_threshold = {t:.3f}; poor rejected {float((pin[yb == 1] >= t).mean()):.2f}, "
+              f"good rejected {float((good >= t).mean()):.2f}", flush=True)
     mark_done(out)
+
+
+@torch.no_grad()
+def real_scores(model, rows, device):
+    model.eval()
+    dl = DataLoader(QDS(rows, False, seed=1), batch_size=64, num_workers=2)
+    P, Y = [], []
+    for x, y in dl:
+        with torch.autocast("cuda", dtype=torch.float16):
+            P.append(torch.softmax(model(x.to(device)).float(), 1)[:, 2].cpu().numpy())
+        Y.append((y.numpy() == 2).astype(int))
+    return np.concatenate(P), np.concatenate(Y)
 
 
 if __name__ == "__main__":

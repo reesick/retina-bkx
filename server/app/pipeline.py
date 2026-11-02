@@ -253,7 +253,7 @@ class Pipeline:
         qlog = self._run("quality", to_tensor_input(sq768, 384))[0][0]
         qprobs = _softmax(qlog).tolist()
         checks = run_checks(compute_features(sq768, m768), lm, self.rules)
-        quality = {**combine(checks, qprobs), "checks": checks}
+        quality = {**combine(checks, qprobs, float(self.rules.get("model_inadequate_threshold", 0.5))), "checks": checks}
         done("quality", t, quality)
         t = step("landmarks")
         done("landmarks", t, lm)

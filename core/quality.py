@@ -112,21 +112,26 @@ def run_checks(features: dict, landmarks: dict | None, rules: dict | None = None
     return out
 
 
-def combine(checks: list[dict], model_probs: list[float] | None) -> dict:
+def combine(checks: list[dict], model_probs: list[float] | None, t_inadequate: float = 0.5) -> dict:
     """Rules + learned model -> adequate / usable / inadequate.
 
     model_probs: [p_adequate, p_usable, p_inadequate] or None.
+    t_inadequate: model cut-off, fitted on held-out DeepDRiD patients (quality_rules.json).
+    Between t/2 and t the image is 'usable' (limitations) rather than rejected.
     """
     hard = [c["code"] for c in checks if c["hard"]]
     soft = [c["code"] for c in checks if not c["pass"] and not c["hard"]]
     reasons = hard + soft
+    p_in = float(model_probs[2]) if model_probs is not None else 0.0
     if hard:
         cat = "inadequate"
-    elif model_probs is not None and model_probs[2] >= 0.5:
+    elif model_probs is not None and p_in >= t_inadequate:
         cat = "inadequate"
-        reasons = reasons + ["MODEL_INADEQUATE"] if "MODEL_INADEQUATE" not in reasons else reasons
-    elif soft or (model_probs is not None and int(np.argmax(model_probs)) >= 1):
+        reasons = reasons + ["MODEL_INADEQUATE"]
+    elif soft or (model_probs is not None and (p_in >= t_inadequate / 2 or int(np.argmax(model_probs)) == 1)):
         cat = "usable"
+        if model_probs is not None and p_in >= t_inadequate / 2:
+            reasons = reasons + ["MODEL_LIMITED"]
     else:
         cat = "adequate"
     score = float(model_probs[0] + 0.5 * model_probs[1]) if model_probs is not None else (1.0 if cat == "adequate" else 0.5)

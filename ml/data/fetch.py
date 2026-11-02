@@ -35,7 +35,8 @@ _TMP = ROOT.parent / ".cache" / "tmp"
 _TMP.mkdir(parents=True, exist_ok=True)
 for _k in ("TMP", "TEMP", "TMPDIR"):
     os.environ[_k] = str(_TMP)
-os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+if os.environ.get("RT_USE_XET") != "1":
+    os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
 os.environ.setdefault("HF_XET_CACHE", str(ROOT.parent / ".cache" / "xet"))
 
 from core.fundus import crop_mask_like, crop_square, decode_image  # noqa: E402
@@ -325,6 +326,35 @@ def fetch_ddr() -> None:
         log("DDR seg images:", len(rows))
         shutil.rmtree(RAW / "ddr" / "lesion_segmentation", ignore_errors=True)
         mark("ddr:seg")
+    if not done("ddr:gradetrain"):
+        out = PROC / "ddr"
+        (out / "img").mkdir(parents=True, exist_ok=True)
+        rows = []
+        for split, txt in [("train", "DR_grading/train.txt"), ("val", "DR_grading/valid.txt")]:
+            lines = _ddr_get(txt).read_text().split()
+            pairs = list(zip(lines[0::2], lines[1::2]))
+            folder = "train" if split == "train" else "valid"
+
+            def work(p, folder=folder, split=split):
+                fn, g = p
+                dst = out / "img" / f"{Path(fn).stem}.jpg"
+                if not dst.exists():
+                    src = _ddr_get(f"DR_grading/{folder}/{fn}")
+                    rgb = decode_image(src.read_bytes())
+                    sq, _ = crop_square(rgb, GRADE_SIZE)
+                    save_jpg(dst, sq)
+                    src.unlink(missing_ok=True)
+                return {"id": Path(fn).stem, "split": split, "grade": int(g)}
+
+            with ThreadPoolExecutor(6) as ex:
+                for i, r in enumerate(ex.map(work, pairs)):
+                    rows.append(r)
+                    if i % 500 == 0:
+                        log("DDR", split, i, "/", len(pairs))
+        write_csv(out / "labels_trainval.csv", rows)
+        log("DDR train/val images:", len(rows))
+        shutil.rmtree(RAW / "ddr" / "DR_grading", ignore_errors=True)
+        mark("ddr:gradetrain")
     if done("ddr:test") and done("ddr:seg"):
         shutil.rmtree(RAW / "ddr", ignore_errors=True)
         mark("ddr")

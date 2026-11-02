@@ -23,9 +23,9 @@ from ml.common import (RUNS, SPLITS, ensure_imagenet_tensor, load_resume, mark_d
                        save_resume, seed_all, softmax, worker_init)
 
 CFG = {
-    "cnn": {"timm": "efficientnet_b3.ra2_in1k", "size": 512, "bs": 8, "epochs": 14, "lr": 3e-4, "head_lr": 1e-3},
+    "cnn": {"timm": "efficientnet_b3.ra2_in1k", "size": 512, "bs": 8, "epochs": 14, "lr": 3e-4, "head_lr": 1e-3, "ft_epochs": 6},
     "vit": {"timm": "vit_base_patch14_dinov2.lvd142m", "size": 448, "bs": 8, "epochs": 10, "lr": 4e-5, "head_lr": 1e-3,
-            "train_blocks": 4},
+            "train_blocks": 4, "ft_epochs": 5},
 }
 
 
@@ -105,21 +105,32 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--arch", choices=["cnn", "vit"], required=True)
     ap.add_argument("--epochs", type=int)
+    ap.add_argument("--init", default=None, help="checkpoint to fine-tune from")
+    ap.add_argument("--aptos-only", action="store_true")
     args = ap.parse_args()
     c = dict(CFG[args.arch])
     if args.epochs:
         c["epochs"] = args.epochs
     seed_all()
     device = torch.device("cuda")
-    df = pd.read_csv(SPLITS / "aptos.csv")
+    multi = (SPLITS / "grading.csv").exists() and not args.aptos_only
+    df = pd.read_csv(SPLITS / ("grading.csv" if multi else "aptos.csv"))
     tr, va = df[df.split == "train"], df[df.split == "val"]
+    if multi:
+        # v2: fine-tune the APTOS-only model on all training sources (fewer epochs, lower LR)
+        c.update(epochs=args.epochs or c.get("ft_epochs", 6), lr=c["lr"] * 0.5, head_lr=c["head_lr"] * 0.3)
+        print(f"[{args.arch}] multi-source: train {len(tr)} ({tr.source.value_counts().to_dict()}), val {len(va)}",
+              flush=True)
     counts = np.bincount(tr["grade"], minlength=5).astype(np.float32)
     weights = torch.tensor((counts.sum() / (5 * counts)) ** 0.5, device=device)
-    dl_tr = DataLoader(GradeDS(tr, c["size"], train_aug(c["size"])), batch_size=c["bs"], shuffle=True, num_workers=3,
+    dl_tr = DataLoader(GradeDS(tr, c["size"], train_aug(c["size"])), batch_size=c["bs"], shuffle=True, num_workers=4,
                        pin_memory=True, drop_last=True, worker_init_fn=worker_init, persistent_workers=True,
                        generator=torch.Generator().manual_seed(42))
     dl_va = DataLoader(GradeDS(va, c["size"], None), batch_size=c["bs"] * 2, num_workers=3, pin_memory=True)
-    model = build_model(args.arch).to(device)
+    model = build_model(args.arch, pretrained=not args.init).to(device)
+    if args.init:
+        model.load_state_dict(torch.load(args.init, map_location="cpu")["state_dict"])
+        print(f"[{args.arch}] initialised from {args.init}", flush=True)
     head_params = [p for n, p in model.named_parameters() if p.requires_grad and ("classifier" in n or "head" in n)]
     body_params = [p for n, p in model.named_parameters() if p.requires_grad and not ("classifier" in n or "head" in n)]
     opt = torch.optim.AdamW([{"params": body_params, "lr": c["lr"]}, {"params": head_params, "lr": c["head_lr"]}],

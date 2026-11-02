@@ -34,21 +34,29 @@ from ml.common import (MODELS_OUT, PROC, RUNS, SPLITS, binary_ece, bootstrap_ci,
                        load_json, qwk, read_rgb, save_json, seed_all, softmax)
 
 DEV = torch.device("cuda")
+SENS_TARGET = 0.95           # operating point: validation sensitivity
+ACCEPTED_SENS_TARGET = 0.97  # sensitivity among cases the AI decides itself
+MAX_ABSTAIN = 0.30
+T_IN = 0.5
 PRED = RUNS / "preds"
 LES = ["MA", "HE", "EX", "SE"]
 
 
 # ------------------------------------------------------------------ datasets
 def datasets() -> dict[str, pd.DataFrame]:
-    a = pd.read_csv(SPLITS / "aptos.csv")
-    out = {f"aptos_{s}": a[a.split == s][["id", "grade", "path"]].reset_index(drop=True) for s in ["train", "val", "test"]}
-    i = pd.read_csv(PROC / "idrid" / "labels.csv")
-    i["path"] = [str(PROC / "idrid" / "img" / f"{x}.jpg") for x in i["id"]]
-    out["idrid"] = i[["id", "grade", "path"]]
+    g = pd.read_csv(SPLITS / "grading.csv")
+    out = {
+        # OOD reference: a fixed, source-stratified sample of the training images (keeps evaluation fast)
+        "train_ref": (g[g.split == "train"].groupby("source", group_keys=False)
+                      .apply(lambda d: d.sample(min(len(d), 1000), random_state=42)).reset_index(drop=True)),
+        "val": g[g.split == "val"].reset_index(drop=True),
+        "aptos_test": g[(g.split == "test") & (g.source == "aptos")].reset_index(drop=True),
+        "idrid": g[g.source == "idrid"].reset_index(drop=True),
+    }
     if (PROC / "ddr" / "labels.csv").exists():
         d = pd.read_csv(PROC / "ddr" / "labels.csv")
         d["path"] = [str(PROC / "ddr" / "img" / f"{x}.jpg") for x in d["id"]]
-        out["ddr"] = d[["id", "grade", "path"]]  # grade 5 = ungradable
+        out["ddr"] = d[["id", "grade", "path"]]  # DDR test incl. grade 5 = ungradable
     if (PROC / "deepdrid" / "labels.csv").exists():
         q = pd.read_csv(PROC / "deepdrid" / "labels.csv")
         q["path"] = [str(PROC / "deepdrid" / "img" / f"{x}.jpg") for x in q["id"]]
@@ -198,7 +206,7 @@ def simulate(d: dict, probs: np.ndarray, pc: np.ndarray, pv: np.ndarray, ood: np
     for i in range(len(probs)):
         f = d["quality_feats"][i]
         checks = run_checks(f, None, rules)
-        q = combine(checks, d["quality_probs"][i].tolist())
+        q = combine(checks, d["quality_probs"][i].tolist(), T_IN)
         les = None
         if "les_area" in d:
             les = {"summary": {n: {"area_frac": float(d["les_area"][i][c]), "count": int(d["les_count"][i][c])}
@@ -243,34 +251,34 @@ def main():
     M = load_models()
     preds = {}
     for n, df in D.items():
-        preds[n] = predict_set(n, df, M, with_lesions=(n != "aptos_train"))
-    yv = D["aptos_val"]["grade"].to_numpy()
-    T = {"cnn": fit_temperature(preds["aptos_val"]["logits_cnn"], yv),
-         "vit": fit_temperature(preds["aptos_val"]["logits_vit"], yv)}
+        preds[n] = predict_set(n, df, M, with_lesions=(n != "train_ref"))
+    yv = D["val"]["grade"].to_numpy()
+    T = {"cnn": fit_temperature(preds["val"]["logits_cnn"], yv),
+         "vit": fit_temperature(preds["val"]["logits_vit"], yv)}
     print("[eval] temperatures", T)
-    ood = OOD(preds["aptos_train"]["feat_cnn"])
+    ood = OOD(preds["train_ref"]["feat_cnn"])
     ood.save(MODELS_OUT / "ood.npz")
-    s_val = ood.score(preds["aptos_val"]["feat_cnn"])
+    s_val = ood.score(preds["val"]["feat_cnn"])
     t_ood = float(np.percentile(s_val, 99))
 
-    pc, pv, pe = ens_probs(preds["aptos_val"], T)
+    pc, pv, pe = ens_probs(preds["val"], T)
     pref = pe[:, 2:].sum(1)
     yr = (yv >= 2).astype(int)
     cands = np.unique(np.round(pref, 4))[::-1]
-    t_ref = float(next(t for t in cands if ((pref >= t) & (yr == 1)).sum() / yr.sum() >= 0.90))
+    t_ref = float(next(t for t in cands if ((pref >= t) & (yr == 1)).sum() / yr.sum() >= SENS_TARGET))
     dis = np.abs(pc[:, 2:].sum(1) - pv[:, 2:].sum(1))
     t_dis = float(np.percentile(dis, 95))
     ent = entropy(pe)
     t_ent = float(np.percentile(ent, 80))
     for t in np.sort(ent)[::-1]:
         acc = (ent <= t) & (dis <= t_dis)
-        if acc.mean() < 0.80:
+        if acc.mean() < 1 - MAX_ABSTAIN:
             break
         s, _, _, _ = sens_spec(yr[acc], (pref[acc] >= t_ref).astype(int))
-        if s >= 0.95:
+        if s >= ACCEPTED_SENS_TARGET:
             t_ent = float(t)
-    la = preds["aptos_val"]["les_area"]
-    lc = preds["aptos_val"]["les_count"]
+    la = preds["val"]["les_area"]
+    lc = preds["val"]["les_count"]
     nonref = yv <= 1
     les_cfg = {"HE_area_frac": float(max(np.percentile(la[nonref, 1], 97), 1e-4)),
                "EX_area_frac": float(max(np.percentile(la[nonref, 2], 97), 1e-4)),
@@ -279,26 +287,28 @@ def main():
            "t_refer": t_ref, "t_entropy": t_ent, "t_disagreement": t_dis, "t_ood": t_ood,
            "lesion_suspicious": les_cfg, "temperatures": T,
            "provenance": {
-               "fitted_on": f"APTOS 2019 validation split (n={len(yv)}, image-level split, seed 42)",
-               "t_refer": "highest P(referable) threshold with validation sensitivity >= 0.90",
-               "t_entropy": "smallest entropy cut-off where accepted validation cases reach sensitivity >= 0.95 with abstention <= 20%",
+               "fitted_on": f"multi-source validation: APTOS val + DDR valid (n={len(yv)}); seed 42",
+               "t_refer": f"highest P(referable) threshold with validation sensitivity >= {SENS_TARGET}",
+               "t_entropy": f"smallest entropy cut-off where accepted validation cases reach sensitivity >= {ACCEPTED_SENS_TARGET} with abstention <= {int(MAX_ABSTAIN * 100)}%",
                "t_disagreement": "95th percentile of |P_ref(CNN) - P_ref(ViT)| on validation",
                "t_ood": "99th percentile of Mahalanobis distance (PCA-64 of CNN features) on validation",
                "lesion_suspicious": "97th percentile of lesion-candidate area/count among validation grade 0-1 images",
                "temperatures": "temperature scaling per grader, minimising validation NLL",
-               "never_used": "IDRiD and DDR are not used for any fitting or threshold"}}
+               "never_used": "IDRiD is never used for training, fitting or thresholds (fully external test)"}}
     save_json(MODELS_OUT / "policy.json", pol)
     print("[eval] policy", {k: pol[k] for k in ["t_refer", "t_entropy", "t_disagreement", "t_ood"]}, les_cfg)
 
-    rules = load_json(MODELS_OUT / "quality_rules.json", {})
+    rules = {k: v for k, v in load_json(MODELS_OUT / "quality_rules.json", {}).items() if k != "provenance"}
+    global T_IN
+    T_IN = float(rules.get("model_inadequate_threshold", 0.5))
     metrics = {"available": True, "generated_at": dt.datetime.utcnow().isoformat() + "Z",
                "git": subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip(),
                "policy_version": pol["version"], "datasets": {}, "models": {"cnn_effb3": {}, "vit_dinov2": {}, "ensemble": {}},
                "triage": {}, "quality": {}, "notes": []}
-    names = {"aptos_test": "APTOS 2019 held-out test (internal)", "aptos_val": "APTOS 2019 validation (fitting set)",
-             "idrid": "IDRiD, all 516 graded images (external)", "ddr": "DDR test (external)",
-             "deepdrid_val": "DeepDRiD validation (external, real quality labels)"}
-    for n in ["aptos_val", "aptos_test", "idrid", "ddr", "deepdrid_val"]:
+    names = {"aptos_test": "APTOS 2019 held-out test (source seen in training)", "val": "Validation, APTOS val + DDR valid (fitting set)",
+             "idrid": "IDRiD, all 516 graded images (fully external: never trained on or fitted)", "ddr": "DDR test, held out (DDR train used in training)",
+             "deepdrid_val": "DeepDRiD validation, held-out patients (DeepDRiD train used in training)"}
+    for n in ["val", "aptos_test", "idrid", "ddr", "deepdrid_val"]:
         if n not in preds:
             continue
         d = preds[n]
@@ -319,7 +329,7 @@ def main():
               f"coverage {metrics['triage'][n]['coverage']:.3f}", flush=True)
     if "deepdrid_val" in preds:
         d, q = preds["deepdrid_val"], D["deepdrid_val"]["overall_quality"].to_numpy()
-        cats = np.array([combine(run_checks(f, None, rules), p.tolist())["category"]
+        cats = np.array([combine(run_checks(f, None, rules), p.tolist(), T_IN)["category"]
                          for f, p in zip(d["quality_feats"], d["quality_probs"])])
         ok = np.isin(q, [0, 1])
         bad = q[ok] == 0
@@ -340,7 +350,7 @@ def main():
                                                 "retake_rate": tri["ungradable_retake_rate"]}
     metrics["notes"] = [
         "Research prototype on public datasets; not clinical validation.",
-        "APTOS split is image-level (no patient IDs available); IDRiD, DDR and DeepDRiD are external and never used for fitting.",
+        "v2 graders are trained on APTOS + DDR train + DeepDRiD train; IDRiD is the only fully external test set. DDR test and DeepDRiD val are held out but come from sources seen in training. APTOS split is image-level (no patient IDs).",
         "Referable = grade >= 2 (research definition).",
         "Public datasets lack age/sex for most images, so patient subgroup analysis was not possible; results are broken down by dataset (camera/site) instead.",
         "PPV/NPV depend on prevalence and do not transfer to PHC populations.",

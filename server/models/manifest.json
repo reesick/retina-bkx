@@ -1,0 +1,82 @@
+{
+  "grader_cnn": {
+    "file": "grader_cnn.onnx",
+    "input": [
+      1,
+      3,
+      512,
+      512
+    ],
+    "outputs": [
+      "logits",
+      "features",
+      "cam"
+    ],
+    "sha": "5fb05907abbf",
+    "parity_max_abs": 0.0020751953125
+  },
+  "grader_vit": {
+    "file": "grader_vit.onnx",
+    "input": [
+      1,
+      3,
+      448,
+      448
+    ],
+    "outputs": [
+      "logits",
+      "features",
+      "attn"
+    ],
+    "sha": "46880942c4be",
+    "parity_max_abs": 6.9141387939453125e-06
+  },
+  "lesions": {
+    "file": "lesions.onnx",
+    "input": [
+      1,
+      3,
+      1024,
+      1024
+    ],
+    "outputs": [
+      "probs"
+    ],
+    "sha": "06024a8d322b",
+    "parity_max_abs": 0.0006629228591918945,
+    "thresholds": {
+      "MA": 0.30000000000000004,
+      "HE": 0.7500000000000002,
+      "EX": 0.5000000000000001,
+      "SE": 0.3500000000000001
+    }
+  },
+  "landmarks": {
+    "file": "landmarks.onnx",
+    "input": [
+      1,
+      3,
+      512,
+      512
+    ],
+    "outputs": [
+      "heatmaps"
+    ],
+    "sha": "d0cd4028affe",
+    "parity_max_abs": 2.60770320892334e-06
+  },
+  "quality": {
+    "file": "quality.onnx",
+    "input": [
+      1,
+      3,
+      384,
+      384
+    ],
+    "outputs": [
+      "logits"
+    ],
+    "sha": "b3ad2490c683",
+    "parity_max_abs": 3.337860107421875e-06
+  }
+}

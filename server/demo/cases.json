@@ -1,0 +1,57 @@
+[
+  {
+    "name": "routine",
+    "title": "Clear photo, no referral trigger",
+    "description": "IDRiD IDRiD_030. Dataset label: grade 0 (no DR).",
+    "source": "IDRiD",
+    "license": "CC-BY-4.0",
+    "file": "routine.jpg",
+    "eye": "OS",
+    "view": "macula",
+    "fov_deg": 50
+  },
+  {
+    "name": "refer-immediate",
+    "title": "Severe signs, immediate referral",
+    "description": "IDRiD IDRiD_001. Dataset label: grade 4 (proliferative DR).",
+    "source": "IDRiD",
+    "license": "CC-BY-4.0",
+    "file": "refer-immediate.jpg",
+    "eye": "OS",
+    "view": "macula",
+    "fov_deg": 50
+  },
+  {
+    "name": "refer-soon",
+    "title": "Moderate signs, referral",
+    "description": "IDRiD IDRiD_009. Dataset label: grade 2 (moderate NPDR).",
+    "source": "IDRiD",
+    "license": "CC-BY-4.0",
+    "file": "refer-soon.jpg",
+    "eye": "OD",
+    "view": "macula",
+    "fov_deg": 50
+  },
+  {
+    "name": "human-review",
+    "title": "The AI is unsure",
+    "description": "IDRiD IDRiD_002. Dataset label: grade 4 (proliferative DR).",
+    "source": "IDRiD",
+    "license": "CC-BY-4.0",
+    "file": "human-review.jpg",
+    "eye": "OD",
+    "view": "macula",
+    "fov_deg": 50
+  },
+  {
+    "name": "retake",
+    "title": "Unusable photo",
+    "description": "IDRiD IDRiD_030 (blurred + darkened copy). Dataset label: grade 0 (no DR).",
+    "source": "IDRiD",
+    "license": "CC-BY-4.0",
+    "file": "retake.jpg",
+    "eye": "OS",
+    "view": "macula",
+    "fov_deg": 50
+  }
+]
