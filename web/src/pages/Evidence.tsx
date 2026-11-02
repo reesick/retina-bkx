@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+﻿import { motion } from "framer-motion";
 import { useMemo, useState, type ReactNode } from "react";
 import { useMetrics } from "../api/hooks";
 import type { GradeMetrics, MetricsAvailable, Reliability } from "../api/types";
@@ -14,9 +14,10 @@ import { useSession } from "../lib/session";
 import { IS_MOCK } from "../api/client";
 
 const DATASETS = [
-  { value: "aptos_test", label: "APTOS internal" },
-  { value: "idrid", label: "IDRiD external" },
-  { value: "ddr", label: "DDR external" },
+  { value: "idrid", label: "IDRiD Â· external" },
+  { value: "ddr", label: "DDR Â· held-out" },
+  { value: "deepdrid_val", label: "DeepDRiD Â· held-out" },
+  { value: "aptos_test", label: "APTOS Â· held-out" },
 ] as const;
 const MODELS = [
   { value: "cnn_effb3", label: "CNN" },
@@ -30,7 +31,7 @@ export default function Evidence() {
   const q = useMetrics();
   return (
     <Page>
-      <LargeTitle sub="External public-dataset evaluation. Every number on this page is read from metrics.json, produced by ml/eval.">Evidence</LargeTitle>
+      <LargeTitle sub="Public-dataset evaluation. IDRiD is fully external; DDR, DeepDRiD and APTOS test sets are held out from sources seen in training. Every number is read from metrics.json, produced by ml/eval.">Evidence</LargeTitle>
       {q.isLoading && <EvidenceSkeleton />}
       {q.isError && <ErrorState error={q.error} onRetry={() => void q.refetch()} />}
       {q.data && !q.data.available && (
@@ -64,7 +65,7 @@ function Card({ title, caption, children, className = "" }: { title: string; cap
   );
 }
 
-const ci = (c?: [number, number] | null) => (c ? ` (${fx(c[0])}–${fx(c[1])})` : "");
+const ci = (c?: [number, number] | null) => (c ? ` (${fx(c[0])}â€“${fx(c[1])})` : "");
 
 function Report({ m }: { m: MetricsAvailable }) {
   const available = DATASETS.filter((d) => m.datasets[d.value]);
@@ -81,8 +82,8 @@ function Report({ m }: { m: MetricsAvailable }) {
     const expl = !!m.explanations && Object.keys(m.explanations).length > 0;
     const det = m.determinism?.verified === true || replayOk;
     return [
-      { on: anyCal, label: "Calibrated", sub: "ECE ↓ after temperature scaling" },
-      { on: external, label: "External test run", sub: "IDRiD / DDR never used for fitting" },
+      { on: anyCal, label: "Calibrated", sub: "ECE â†“ after temperature scaling" },
+      { on: external, label: "External test run", sub: "IDRiD never trained on or fitted" },
       { on: expl, label: "Explanations tested", sub: "pointing game, deletion, randomisation" },
       { on: det, label: "Determinism verified", sub: m.determinism?.verified ? "recorded by ml/eval" : replayOk ? "replay matched in this session" : "run a Replay on a case" },
     ];
@@ -103,9 +104,9 @@ function Report({ m }: { m: MetricsAvailable }) {
               <div className="text-[68px] font-semibold leading-none tracking-[-0.04em]"><Odometer value={g.auroc} format={(v) => v.toFixed(3)} /></div>
               <div className="mt-2 text-eyebrow uppercase text-l2">AUROC</div>
             </Ring>
-            <div className="mt-6 text-headline">{MODELS.find((x) => x.value === md)?.label} · referable DR (grade ≥ 2)</div>
-            <div className="mt-1 text-body text-l2">{info?.source} · n = {info?.n ?? g.n}{g.auroc_ci ? ` · 95% CI ${fx(g.auroc_ci[0], 3)}–${fx(g.auroc_ci[1], 3)}` : ""}</div>
-            <div className="num mt-3 text-[15px]">sensitivity {fx(g.sens)}{ci(g.sens_ci)} · specificity {fx(g.spec)}{ci(g.spec_ci)}</div>
+            <div className="mt-6 text-headline">{MODELS.find((x) => x.value === md)?.label} Â· referable DR (grade â‰¥ 2)</div>
+            <div className="mt-1 text-body text-l2">{info?.source} Â· n = {info?.n ?? g.n}{g.auroc_ci ? ` Â· 95% CI ${fx(g.auroc_ci[0], 3)}â€“${fx(g.auroc_ci[1], 3)}` : ""}</div>
+            <div className="num mt-3 text-[15px]">sensitivity {fx(g.sens)}{ci(g.sens_ci)} Â· specificity {fx(g.spec)}{ci(g.spec_ci)}</div>
           </>
         ) : (
           <div className="py-10 text-l2">No grading metrics for this dataset and model.</div>
@@ -126,10 +127,10 @@ function Report({ m }: { m: MetricsAvailable }) {
       {g && (
         <div className="grid gap-4 md:grid-cols-2">
           <Card title="ROC curve" caption={`${info?.source ?? ds}. Dot = operating point from validation.`}>{g.roc ? <Roc roc={g.roc} sens={g.sens} spec={g.spec} /> : <Empty />}</Card>
-          <Card title="Reliability" caption={`P(referable) calibration. ECE before ${fx(g.ece_before, 3)} → after ${fx(g.ece_after, 3)}.`}><ReliabilityChart g={g} /></Card>
-          <Card title="Risk–coverage" caption="Error rate when only the most certain cases are automated. Marker = coverage of the triage policy.">{tri?.risk_coverage ? <RiskCoverage rc={tri.risk_coverage} op={tri.coverage} /> : <Empty />}</Card>
+          <Card title="Reliability" caption={`P(referable) calibration. ECE before ${fx(g.ece_before, 3)} â†’ after ${fx(g.ece_after, 3)}.`}><ReliabilityChart g={g} /></Card>
+          <Card title="Riskâ€“coverage" caption="Error rate when only the most certain cases are automated. Marker = coverage of the triage policy.">{tri?.risk_coverage ? <RiskCoverage rc={tri.risk_coverage} op={tri.coverage} /> : <Empty />}</Card>
           <Card title="Confusion" caption="Rows = reference grade, columns = predicted. Brightness = row share.">{g.confusion ? <Confusion cm={g.confusion} /> : <Empty />}</Card>
-          <Card title="Per-grade recall" caption={`QWK ${fx(g.qwk, 3)} · Brier ${fx(g.brier, 3)} · PPV ${fx(g.ppv)} · NPV ${fx(g.npv)} (PPV/NPV depend on prevalence ${pct(g.prevalence)})`}>{g.per_grade_recall ? <Recall r={g.per_grade_recall} /> : <Empty />}</Card>
+          <Card title="Per-grade recall" caption={`QWK ${fx(g.qwk, 3)} Â· Brier ${fx(g.brier, 3)} Â· PPV ${fx(g.ppv)} Â· NPV ${fx(g.npv)} (PPV/NPV depend on prevalence ${pct(g.prevalence)})`}>{g.per_grade_recall ? <Recall r={g.per_grade_recall} /> : <Empty />}</Card>
           <Card title="Triage policy" caption="Share of images the policy decided automatically and how they were routed.">
             {tri ? (
               <div className="grid grid-cols-3 gap-3">
@@ -181,13 +182,13 @@ function Report({ m }: { m: MetricsAvailable }) {
         <Card title="Latency" caption="Per image, all models, on this kind of CPU.">
           {m.latency_ms ? (
             <div className="grid grid-cols-2 gap-3">
-              <Big label="p50" v={m.latency_ms.p50 != null ? `${m.latency_ms.p50} ms` : "–"} />
-              <Big label="p95" v={m.latency_ms.p95 != null ? `${m.latency_ms.p95} ms` : "–"} />
+              <Big label="p50" v={m.latency_ms.p50 != null ? `${m.latency_ms.p50} ms` : "â€“"} />
+              <Big label="p95" v={m.latency_ms.p95 != null ? `${m.latency_ms.p95} ms` : "â€“"} />
               <div className="col-span-2 text-[12px] text-l3">{m.latency_ms.cpu}</div>
             </div>
           ) : <Empty />}
         </Card>
-        <Card title="Notes" caption={`Generated ${shortTime(m.generated_at)} · policy ${m.policy_version}${m.git ? ` · ${m.git}` : ""}`}>
+        <Card title="Notes" caption={`Generated ${shortTime(m.generated_at)} Â· policy ${m.policy_version}${m.git ? ` Â· ${m.git}` : ""}`}>
           <ul className="space-y-2">
             {m.notes.map((n, i) => <li key={i} className="flex gap-2 text-[14px] text-white/85"><FileText className="mt-0.5 h-4 w-4 shrink-0 text-l3" />{n}</li>)}
           </ul>
@@ -213,9 +214,9 @@ function KV({ obj }: { obj: unknown }) {
   if (!obj || typeof obj !== "object" || !Object.keys(obj).length) return <Empty />;
   const fmt = (k: string, v: unknown): string => {
     if (typeof v === "number") return /rate|within|acc|auroc|game|share/i.test(k) && v <= 1 ? (v * 100).toFixed(1) + "%" : Number.isInteger(v) ? String(v) : v.toFixed(3);
-    if (v == null) return "–";
+    if (v == null) return "â€“";
     if (typeof v === "boolean") return v ? "yes" : "no";
-    if (typeof v === "object") return Object.entries(v as Record<string, unknown>).map(([a, b]) => `${a} ${typeof b === "number" ? (Number.isInteger(b) ? b : b.toFixed(2)) : String(b)}`).join(" · ");
+    if (typeof v === "object") return Object.entries(v as Record<string, unknown>).map(([a, b]) => `${a} ${typeof b === "number" ? (Number.isInteger(b) ? b : b.toFixed(2)) : String(b)}`).join(" Â· ");
     return String(v);
   };
   return (
@@ -261,7 +262,7 @@ function Roc({ roc, sens, spec }: { roc: { fpr: number[]; tpr: number[] }; sens:
   const d = roc.fpr.map((f, i) => `${i ? "L" : "M"}${sx(f).toFixed(1)},${sy(roc.tpr[i]).toFixed(1)}`).join(" ");
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="ROC curve">
-      <Axes xl="1 − specificity" yl="sensitivity" />
+      <Axes xl="1 âˆ’ specificity" yl="sensitivity" />
       <line x1={sx(0)} y1={sy(0)} x2={sx(1)} y2={sy(1)} stroke="rgba(255,255,255,0.15)" strokeDasharray="3 4" />
       <motion.path d={`${d} L${sx(1)},${sy(0)} Z`} fill="rgba(255,255,255,0.05)" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.8 }} />
       <motion.path d={d} fill="none" stroke="#fff" strokeWidth={2.2} initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true }} transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }} style={{ filter: "drop-shadow(0 0 4px rgba(255,255,255,0.5))" }} />
@@ -328,7 +329,7 @@ function Confusion({ cm }: { cm: number[][] }) {
             ...row.map((v, j) => {
               const s = v / tot;
               return (
-                <motion.div key={`${i}-${j}`} title={`ref ${i} → pred ${j}: ${v} (${(s * 100).toFixed(0)}%)`}
+                <motion.div key={`${i}-${j}`} title={`ref ${i} â†’ pred ${j}: ${v} (${(s * 100).toFixed(0)}%)`}
                   initial={{ opacity: 0, scale: 0.6 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: (i * 5 + j) * 0.015 }}
                   className="num grid aspect-square place-items-center rounded-[6px] text-[10px]"
                   style={{ background: `rgba(255,255,255,${0.05 + s * 0.95})`, color: s > 0.5 ? "#000" : "rgba(255,255,255,0.6)", boxShadow: i === j ? "inset 0 0 0 1px rgba(255,255,255,0.4)" : "none" }}>
@@ -339,7 +340,7 @@ function Confusion({ cm }: { cm: number[][] }) {
           ];
         })}
       </div>
-      <div className="mt-2 text-[11px] text-l3">predicted grade →</div>
+      <div className="mt-2 text-[11px] text-l3">predicted grade â†’</div>
     </div>
   );
 }
@@ -394,7 +395,7 @@ function Compare({ m, md }: { m: MetricsAvailable; md: MD }) {
           ))}
         </tbody>
       </table>
-      <div className="mt-2 flex items-center gap-1.5 text-[12px] text-l3"><Check className="h-3.5 w-3.5" /> Δ against APTOS internal; red = worse on external data. Designed for multi-camera compatibility; generalisability under evaluation.</div>
+      <div className="mt-2 flex items-center gap-1.5 text-[12px] text-l3"><Check className="h-3.5 w-3.5" /> Î” against APTOS internal; red = worse on external data. Designed for multi-camera compatibility; generalisability under evaluation.</div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-// MOCK DATA for VITE_MOCK=1. Shapes match docs/04_API.md exactly. Numbers here are invented and only ever shown
+﻿// MOCK DATA for VITE_MOCK=1. Shapes match docs/04_API.md exactly. Numbers here are invented and only ever shown
 // while the "MOCK DATA" pill is visible.
 import type {
   DemoCase, Eye, Grade, Grading, Landmarks, Lesion, LesionType, Lesions, MacularRisk, MetricsAvailable, ModelGrade,
@@ -359,7 +359,7 @@ export function mockMetrics(): MetricsAvailable {
     notes: [
       "MOCK DATA: these numbers are invented for UI development and are not results.",
       "Research prototype on public datasets; not clinical validation.",
-      "APTOS split is image-level (no patient IDs available); IDRiD, DDR and DeepDRiD are external and never used for fitting.",
+      "Graders trained on APTOS + DDR train + DeepDRiD train; IDRiD is the only fully external test set.",
       "Referable = grade >= 2 (research definition).",
       "PPV/NPV depend on prevalence and do not transfer to PHC populations.",
     ],

@@ -14,6 +14,8 @@
   "provenance": {
     "n_adequate": 600,
     "sources": "APTOS train + DeepDRiD train (overall quality = 1)",
-    "rule": "soft = 2nd/98th percentile of adequate images; hard = fixed fraction of soft"
-  }
+    "rule": "soft = 2nd/98th percentile of adequate images; hard = fixed fraction of soft",
+    "model_inadequate_threshold": "90th percentile of P(inadequate) on good photos of held-out DeepDRiD train patients (n=236); at this cut-off 0.46 of poor photos are rejected"
+  },
+  "model_inadequate_threshold": 0.7785160541534424
 }
