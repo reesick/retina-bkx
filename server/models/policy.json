@@ -1,33 +1,31 @@
 {
-  "version": "fit-20261102-2035",
-  "t_refer": 0.6547999978065491,
+  "version": "fit-20261102-2332",
+  "t_refer": 0.49720001220703125,
   "t_refer_low": 0.25,
   "t_severe": 0.5,
-  "t_entropy": 0.9502077698707581,
-  "t_disagreement": 0.276910662651062,
-  "t_ood": 15.481009947594012,
+  "t_entropy": 0.6067097783088684,
+  "t_disagreement": 0.32793962955474854,
+  "t_ood": 13.724671295427367,
   "lesion_suspicious": {
-    "HE_area_frac": 0.0016513186436028344,
-    "EX_area_frac": 0.0032361131570720235,
-    "HE_count": 8
+    "HE_area_frac": 0.0006131521841434605,
+    "EX_area_frac": 0.0005400510508307546,
+    "HE_count": 3
   },
   "va_refer_logmar": 0.3010299956639812,
   "macular_radius_dd": 1.0,
   "require_both_eyes": true,
   "provenance": {
-    "fitted_on": "APTOS 2019 validation split (n=549, image-level split, seed 42)",
-    "t_refer": "highest P(referable) threshold with validation sensitivity >= 0.90",
-    "t_entropy": "smallest entropy cut-off where accepted validation cases reach sensitivity >= 0.95 with abstention <= 20%",
+    "fitted_on": "multi-source validation: APTOS val + DDR valid (n=3052); seed 42",
+    "t_refer": "highest P(referable) threshold with validation sensitivity >= 0.95",
+    "t_entropy": "smallest entropy cut-off where accepted validation cases reach sensitivity >= 0.97 with abstention <= 30%",
     "t_disagreement": "95th percentile of |P_ref(CNN) - P_ref(ViT)| on validation",
     "t_ood": "99th percentile of Mahalanobis distance (PCA-64 of CNN features) on validation",
     "lesion_suspicious": "97th percentile of lesion-candidate area/count among validation grade 0-1 images",
     "temperatures": "temperature scaling per grader, minimising validation NLL",
-    "never_used": "IDRiD and DDR are not used for any fitting or threshold",
-    "laterality_disc_right": "measured on DeepDRiD (n=1163 decided): disc on image right -> OD"
+    "never_used": "IDRiD is never used for training, fitting or thresholds (fully external test)"
   },
   "temperatures": {
-    "cnn": 2.2158609365751487,
-    "vit": 1.5806097506900263
-  },
-  "laterality_disc_right": "OD"
+    "cnn": 1.4411444789824686,
+    "vit": 1.3312553308187571
+  }
 }

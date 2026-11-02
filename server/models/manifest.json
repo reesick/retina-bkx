@@ -12,8 +12,8 @@
       "features",
       "cam"
     ],
-    "sha": "5fb05907abbf",
-    "parity_max_abs": 0.0020751953125
+    "sha": "c9cdc84f28bd",
+    "parity_max_abs": 0.0013427734375
   },
   "grader_vit": {
     "file": "grader_vit.onnx",
@@ -28,8 +28,8 @@
       "features",
       "attn"
     ],
-    "sha": "46880942c4be",
-    "parity_max_abs": 6.9141387939453125e-06
+    "sha": "56aac9327b6b",
+    "parity_max_abs": 5.4836273193359375e-06
   },
   "lesions": {
     "file": "lesions.onnx",
@@ -43,7 +43,7 @@
       "probs"
     ],
     "sha": "06024a8d322b",
-    "parity_max_abs": 0.0006629228591918945,
+    "parity_max_abs": 9.274482727050781e-05,
     "thresholds": {
       "MA": 0.30000000000000004,
       "HE": 0.7500000000000002,
@@ -63,7 +63,7 @@
       "heatmaps"
     ],
     "sha": "d0cd4028affe",
-    "parity_max_abs": 2.60770320892334e-06
+    "parity_max_abs": 1.952052116394043e-06
   },
   "quality": {
     "file": "quality.onnx",
@@ -76,7 +76,7 @@
     "outputs": [
       "logits"
     ],
-    "sha": "b3ad2490c683",
-    "parity_max_abs": 3.337860107421875e-06
+    "sha": "10f1a746d4eb",
+    "parity_max_abs": 4.38690185546875e-05
   }
 }
