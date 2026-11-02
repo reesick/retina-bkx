@@ -42,20 +42,30 @@ def run(name: str, args: list[str]) -> bool:
     LOGS.mkdir(exist_ok=True)
     print(f"[run_all] >>> {name}: {' '.join(args)}", flush=True)
     t0 = time.time()
-    with open(LOGS / f"stage_{name}.log", "w") as f:
-        r = subprocess.run([PY, "-u", "-m", *args], cwd=ROOT, stdout=f, stderr=subprocess.STDOUT)
-    print(f"[run_all] <<< {name} exit {r.returncode} in {(time.time() - t0) / 60:.1f} min", flush=True)
-    return r.returncode == 0
+    with open(LOGS / f"stage_{name}.log", "a", encoding="utf-8") as f:
+        f.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} start {name} =====\n")
+        proc = subprocess.Popen([PY, "-u", "-m", *args], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                text=True, encoding="utf-8", errors="replace", bufsize=1)
+        for line in proc.stdout:  # live: console + log file
+            if "unauthenticated requests" in line:
+                continue
+            sys.stdout.write(line)
+            sys.stdout.flush()
+            f.write(line)
+            f.flush()
+        rc = proc.wait()
+    print(f"[run_all] <<< {name} exit {rc} in {(time.time() - t0) / 60:.1f} min", flush=True)
+    return rc == 0
 
 
 STAGES = [
     # name, wait-for manifest keys, wait minutes, done-marker, module args
     ("splits", ["aptos"], 240, ROOT / "data" / "splits" / "aptos.csv", ["ml.data.splits"]),
-    ("landmarks", ["idrid"], 1, RUNS / "landmarks" / "best.pt", ["ml.train.landmarks"]),
-    ("grader_cnn", ["aptos"], 1, RUNS / "grader_cnn" / "best.pt", ["ml.train.grader", "--arch", "cnn"]),
-    ("quality", ["deepdrid"], 60, RUNS / "quality" / "best.pt", ["ml.train.quality"]),
-    ("grader_vit", ["aptos"], 1, RUNS / "grader_vit" / "best.pt", ["ml.train.grader", "--arch", "vit"]),
-    ("lesions", ["ddr:seg"], 240, RUNS / "lesions" / "best.pt", ["ml.train.lesions"]),
+    ("landmarks", ["idrid"], 1, RUNS / "landmarks" / "done.txt", ["ml.train.landmarks"]),
+    ("grader_cnn", ["aptos"], 1, RUNS / "grader_cnn" / "done.txt", ["ml.train.grader", "--arch", "cnn"]),
+    ("quality", ["deepdrid"], 60, RUNS / "quality" / "done.txt", ["ml.train.quality"]),
+    ("grader_vit", ["aptos"], 1, RUNS / "grader_vit" / "done.txt", ["ml.train.grader", "--arch", "vit"]),
+    ("lesions", ["ddr:seg"], 240, RUNS / "lesions" / "done.txt", ["ml.train.lesions"]),
     ("export", [], 0, MODELS / "lesions.onnx", ["ml.export.to_onnx"]),
     ("evaluate", ["ddr:test"], 120, MODELS / "policy.json", ["ml.eval.evaluate"]),
     ("extras", [], 0, RUNS / "extras.done", ["ml.eval.extras"]),
@@ -63,11 +73,38 @@ STAGES = [
 ]
 
 
+def _locked() -> bool:
+    """True if another run_all is alive (lock file holds its PID)."""
+    lock = LOGS / "run_all.lock"
+    if lock.exists():
+        try:
+            pid = int(lock.read_text().strip())
+            import psutil  # noqa: F401
+        except Exception:
+            pid = None
+        if pid:
+            try:
+                import psutil
+
+                if psutil.pid_exists(pid) and "python" in psutil.Process(pid).name().lower():
+                    return True
+            except Exception:
+                pass
+    LOGS.mkdir(exist_ok=True)
+    import os
+
+    lock.write_text(str(os.getpid()))
+    return False
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", default="")
     ap.add_argument("--force", action="store_true")
     a = ap.parse_args()
+    if _locked():
+        print("[run_all] another run_all is already running (logs/run_all.lock); exiting", flush=True)
+        return 2
     only = set(filter(None, a.only.split(",")))
     for name, keys, wait, marker, args in STAGES:
         if only and name not in only:

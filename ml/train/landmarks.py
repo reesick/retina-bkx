@@ -18,7 +18,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
-from ml.common import PROC, RUNS, ensure_imagenet_tensor, read_rgb, save_json, seed_all, worker_init
+from ml.common import (PROC, RUNS, ensure_imagenet_tensor, load_resume, mark_done, read_rgb, save_json, save_resume,
+                       seed_all, worker_init)
 
 SIZE, HM, SIGMA = 512, 128, 2.5
 
@@ -107,8 +108,9 @@ def main():
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=5e-4, total_steps=args.epochs * len(dl), pct_start=0.05)
     out = RUNS / "landmarks"
     out.mkdir(parents=True, exist_ok=True)
-    best, hist = 1e9, []
-    for ep in range(args.epochs):
+    objs = {"model": model, "opt": opt, "sched": sched}
+    start, best, hist = load_resume(out, objs, 1e9)
+    for ep in range(start, args.epochs):
         model.train()
         t0, tot = time.time(), 0.0
         for x, hm, _ in dl:
@@ -139,6 +141,8 @@ def main():
                 best = med.sum()
                 torch.save({"state_dict": model.state_dict(), "val": hist[-1]}, out / "best.pt")
             save_json(out / "history.json", hist)
+        save_resume(out, ep, objs, best, hist)
+    mark_done(out)
 
 
 if __name__ == "__main__":

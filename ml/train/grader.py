@@ -19,7 +19,8 @@ import torch.nn as nn
 from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader, Dataset
 
-from ml.common import RUNS, SPLITS, ensure_imagenet_tensor, qwk, read_rgb, save_json, seed_all, softmax, worker_init
+from ml.common import (RUNS, SPLITS, ensure_imagenet_tensor, load_resume, mark_done, qwk, read_rgb, save_json,
+                       save_resume, seed_all, softmax, worker_init)
 
 CFG = {
     "cnn": {"timm": "efficientnet_b3.ra2_in1k", "size": 512, "bs": 8, "epochs": 14, "lr": 3e-4, "head_lr": 1e-3},
@@ -131,8 +132,9 @@ def main():
     loss_fn = nn.CrossEntropyLoss(weight=weights)
     out = RUNS / f"grader_{args.arch}"
     out.mkdir(parents=True, exist_ok=True)
-    best, hist = -1.0, []
-    for ep in range(c["epochs"]):
+    objs = {"model": model, "opt": opt, "sched": sched, "scaler": scaler}
+    start, best, hist = load_resume(out, objs, -1.0)
+    for ep in range(start, c["epochs"]):
         model.train()
         t0, tot, n = time.time(), 0.0, 0
         for x, y in dl_tr:
@@ -157,6 +159,8 @@ def main():
             best = score
             torch.save({"state_dict": model.state_dict(), "arch": args.arch, "cfg": c, "val": m}, out / "best.pt")
         save_json(out / "history.json", hist)
+        save_resume(out, ep, objs, best, hist)
+    mark_done(out)
     print(f"[{args.arch}] best score {best:.4f}")
 
 

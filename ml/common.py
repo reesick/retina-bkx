@@ -127,3 +127,40 @@ def bootstrap_ci(fn, *arrays, n: int = 1000, seed: int = SEED) -> list[float]:
     if not vals:
         return [float("nan"), float("nan")]
     return [float(np.percentile(vals, 2.5)), float(np.percentile(vals, 97.5))]
+
+
+# ------------------------------------------------------------------ resumable training
+def load_resume(out: Path, objs: dict, best_default: float):
+    """Restore model/optimizer/scheduler/scaler from out/last.pt if present.
+
+    Returns (start_epoch, best, history). objs maps names to objects with state_dict/load_state_dict.
+    """
+    import torch
+
+    p = Path(out) / "last.pt"
+    if not p.exists():
+        return 0, best_default, []
+    ck = torch.load(p, map_location="cpu", weights_only=False)
+    for k, o in objs.items():
+        if o is not None and k in ck:
+            o.load_state_dict(ck[k])
+    print(f"[resume] {out.name}: continuing after epoch {ck['epoch']} (best {ck['best']:.4f})", flush=True)
+    return int(ck["epoch"]) + 1, float(ck["best"]), list(ck.get("hist", []))
+
+
+def save_resume(out: Path, epoch: int, objs: dict, best: float, hist: list) -> None:
+    """Atomically write out/last.pt after every epoch."""
+    import torch
+
+    out = Path(out)
+    tmp = out / "last.pt.tmp"
+    torch.save({"epoch": epoch, "best": best, "hist": hist,
+                **{k: o.state_dict() for k, o in objs.items() if o is not None}}, tmp)
+    os.replace(tmp, out / "last.pt")
+
+
+def mark_done(out: Path) -> None:
+    """Training finished: write done.txt and drop the resume checkpoint."""
+    out = Path(out)
+    (out / "done.txt").write_text("ok")
+    (out / "last.pt").unlink(missing_ok=True)

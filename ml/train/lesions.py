@@ -21,7 +21,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
-from ml.common import PROC, RUNS, ensure_imagenet_tensor, read_rgb, save_json, seed_all, worker_init
+from ml.common import (PROC, RUNS, ensure_imagenet_tensor, load_resume, mark_done, read_rgb, save_json, save_resume,
+                       seed_all, worker_init)
 
 LESIONS = ["MA", "HE", "EX", "SE"]
 CROP = 512
@@ -133,8 +134,9 @@ def main():
     pos_w = torch.tensor([20.0, 5.0, 5.0, 5.0], device=device).view(1, 4, 1, 1)
     out = RUNS / "lesions"
     out.mkdir(parents=True, exist_ok=True)
-    best, hist = -1.0, []
-    for ep in range(args.epochs):
+    objs = {"model": model, "opt": opt, "sched": sched, "scaler": scaler}
+    start, best, hist = load_resume(out, objs, -1.0)
+    for ep in range(start, args.epochs):
         model.train()
         t0, tot = time.time(), 0.0
         for x, y in dl:
@@ -161,6 +163,8 @@ def main():
                             "val": r}, out / "best.pt")
             save_json(out / "history.json", hist)
         print(msg, flush=True)
+        save_resume(out, ep, objs, best, hist)
+    mark_done(out)
 
 
 if __name__ == "__main__":

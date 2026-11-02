@@ -25,7 +25,8 @@ from torch.utils.data import DataLoader, Dataset
 
 from core.fundus import fundus_mask
 from core.quality import compute_features
-from ml.common import MODELS_OUT, PROC, RUNS, SPLITS, ensure_imagenet_tensor, read_rgb, save_json, seed_all, worker_init
+from ml.common import (MODELS_OUT, PROC, RUNS, SPLITS, ensure_imagenet_tensor, load_resume, mark_done, read_rgb,
+                       save_json, save_resume, seed_all, worker_init)
 
 SIZE = 384
 
@@ -58,6 +59,7 @@ def degrade(img: np.ndarray, level: int, rng: np.random.Generator) -> np.ndarray
             ker = cv2.warpAffine(ker, M, (L, L))
             out = cv2.filter2D(out, -1, ker / max(ker.sum(), 1e-6))
         elif k == "dark":
+            out = np.clip(out, 0, 255)
             g = rng.uniform(1.6, 2.2) if level == 1 else rng.uniform(3.0, 5.0)
             out = 255.0 * (out / 255.0) ** g * (rng.uniform(0.7, 0.9) if level == 1 else rng.uniform(0.25, 0.5))
         elif k == "glare":
@@ -170,8 +172,9 @@ def main():
     scaler = torch.amp.GradScaler()
     out = RUNS / "quality"
     out.mkdir(parents=True, exist_ok=True)
-    best, hist = -1, []
-    for ep in range(args.epochs):
+    objs = {"model": model, "opt": opt, "sched": sched, "scaler": scaler}
+    start, best, hist = load_resume(out, objs, -1.0)
+    for ep in range(start, args.epochs):
         model.train()
         t0, tot = time.time(), 0.0
         for x, y in dl:
@@ -201,6 +204,8 @@ def main():
             best = acc
             torch.save({"state_dict": model.state_dict(), "val": hist[-1]}, out / "best.pt")
         save_json(out / "history.json", hist)
+        save_resume(out, ep, objs, best, hist)
+    mark_done(out)
 
 
 if __name__ == "__main__":

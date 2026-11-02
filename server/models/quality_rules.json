@@ -1,18 +1,18 @@
 {
-  "focus_min": 2.476122503845949,
-  "focus_hard_min": 0.8666428763460822,
-  "dark_mean_min": 42.06096923828125,
-  "dark_hard_min": 18.927436157226563,
+  "focus_min": 2.6781517947467144,
+  "focus_hard_min": 0.93735312816135,
+  "dark_mean_min": 45.87832069396973,
+  "dark_hard_min": 20.645244312286376,
   "bright_sat_max": 0.01,
-  "uneven_max": 0.328821414672961,
+  "uneven_max": 0.35511748484808714,
   "field_min": 0.6,
   "field_hard_min": 0.33,
   "redness_min": 1.05,
-  "vessel_min": 0.06171410629158444,
+  "vessel_min": 0.06597217742411599,
   "disc_conf_min": 0.35,
   "fovea_conf_min": 0.3,
   "provenance": {
-    "n_adequate": 300,
+    "n_adequate": 600,
     "sources": "APTOS train + DeepDRiD train (overall quality = 1)",
     "rule": "soft = 2nd/98th percentile of adequate images; hard = fixed fraction of soft"
   }
