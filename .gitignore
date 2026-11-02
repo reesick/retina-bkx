@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+logs/
+data/
+runs/
+*.onnx
+*.pt
+*.pth
+*.ckpt
+node_modules/
+web/dist/
+server/storage/
+.install*
+.env
