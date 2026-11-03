@@ -11,8 +11,9 @@ import path from "node:path";
 import os from "node:os";
 import puppeteer from "puppeteer-core";
 
-const BASE = process.argv[2] || "http://127.0.0.1:8765";
-const OUT = path.resolve("..", "logs", "ui_qa");
+const GPU = process.argv.includes("--gpu");   // real GPU (hardware WebGL) instead of software rendering
+const BASE = process.argv.slice(2).find((a) => a.startsWith("http")) || "http://127.0.0.1:8765";
+const OUT = path.resolve("..", "logs", GPU ? "ui_qa_gpu" : "ui_qa");
 fs.mkdirSync(OUT, { recursive: true });
 
 function findChrome() {
@@ -33,7 +34,9 @@ const fail = (where, what, detail) => {
 const browser = await puppeteer.launch({
   executablePath: findChrome(),
   headless: true,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--window-size=1600,1000", "--no-first-run"],
+  args: GPU
+    ? ["--enable-gpu", "--ignore-gpu-blocklist", "--use-angle=d3d11", "--enable-features=Vulkan", "--window-size=1600,1000", "--no-first-run"]
+    : ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--window-size=1600,1000", "--no-first-run"],
   defaultViewport: { width: 1600, height: 1000 },
 });
 const page = await browser.newPage();
@@ -142,12 +145,15 @@ async function visit(name, url, { wait = 3500, shot = true } = {}) {
   try { await page.goto(BASE + url, { waitUntil: "networkidle2", timeout: 45000 }); } catch (e) { fail(name, "navigation", String(e)); }
   await sleep(wait);
   const a = await audit(name);
+  a.fps = await page.evaluate(() => new Promise((res) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 3000) requestAnimationFrame(f); else res(Math.round(n / ((performance.now() - t0) / 1000))); }; requestAnimationFrame(f); }));
+  a.renderer = await page.evaluate(() => { try { const c = document.createElement("canvas"); const gl = c.getContext("webgl2"); const e = gl.getExtension("WEBGL_debug_renderer_info"); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : "unknown"; } catch { return "none"; } });
   a.loadMs = Date.now() - t0;
   const e = takeEvents();
   Object.assign(a, e);
   if (shot) await page.screenshot({ path: path.join(OUT, `${name}.png`) });
   report.pages.push(a);
-  console.log(`- ${name} (${a.loadMs} ms): ${a.clickables} clickables, ${a.canvases} canvas, contexts ${a.qa.contexts}, lost ${a.qa.lost}, long tasks ${a.qa.longTasks} (${Math.round(a.qa.longMs)} ms)`);
+  if (GPU && a.canvases > 0 && a.fps < 45) fail(name, "frame rate below 45 fps on real GPU", `${a.fps} fps`);
+  console.log(`- ${name} (${a.loadMs} ms, ${a.fps} fps): ${a.clickables} clickables, ${a.canvases} canvas, contexts ${a.qa.contexts}, lost ${a.qa.lost}, long tasks ${a.qa.longTasks} (${Math.round(a.qa.longMs)} ms)`);
   if (a.nothingHere) fail(name, "route shows NotFound");
   e.errors.forEach((x) => fail(name, "page error", x));
   e.console.forEach((x) => fail(name, "console error", x));
@@ -288,7 +294,9 @@ if (encId) await scenario("case-interactions", async () => {
 });
 
 report.finished = new Date().toISOString();
-fs.writeFileSync(path.resolve("..", "logs", "ui_qa.json"), JSON.stringify(report, null, 2));
+report.gpu = GPU; report.renderer = report.pages[0]?.renderer;
+fs.writeFileSync(path.resolve("..", "logs", GPU ? "ui_qa_gpu.json" : "ui_qa.json"), JSON.stringify(report, null, 2));
+console.log("renderer:", report.renderer);
 await browser.close();
 console.log(`\n${report.failures.length} failures. Report: logs/ui_qa.json, screenshots: logs/ui_qa/`);
 process.exit(report.failures.length ? 1 : 0);

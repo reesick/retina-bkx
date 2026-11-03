@@ -17,6 +17,7 @@ with fixed threading, floats rounded to 4 decimals.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import threading
 import time
@@ -121,6 +122,13 @@ class Pipeline:
                 self.sessions[n] = ort.InferenceSession(str(self.dir / f"{n}.onnx"), so, providers=["CPUExecutionProvider"])
             self.manifest = json.loads((self.dir / "manifest.json").read_text())
             self.policy = {**P.DEFAULT_POLICY, **json.loads((self.dir / "policy.json").read_text())}
+            site = os.environ.get("RETINITRY_SITE", "").strip()
+            sp = self.dir / "sites" / f"{site}.json"
+            if site and sp.exists():
+                prof = json.loads(sp.read_text())
+                self.policy.update({k: prof[k] for k in ("temperatures", "t_refer") if k in prof})
+                self.policy["version"] = f"{self.policy.get('version', '')}+site:{site}"
+                self.policy["site"] = site
             qr = self.dir / "quality_rules.json"
             self.rules = {k: v for k, v in json.loads(qr.read_text()).items() if k != "provenance"} if qr.exists() else {}
             o = np.load(self.dir / "ood.npz")
