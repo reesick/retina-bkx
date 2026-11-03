@@ -8,7 +8,7 @@ import { buildEye, focusError, refractiveError, refractiveLabel, traceFan, trial
 import { useRouteActive } from "../lib/route";
 import { IRIS_COLORS } from "../three/EyeModel";
 import { ANATOMY_CAM, AnatomyScene, CoverageScene, StagesScene, STAGE_TEXT, coverageFields, coverageShare, type CoverageKey } from "../three/LabScenes";
-import { Stage } from "../three/Stage";
+import { CompileGate, Stage } from "../three/Stage";
 
 const OpticsScene = lazy(() => import("../three/OpticsView"));
 
@@ -55,6 +55,7 @@ export default function EyeLab() {
       {routeActive && (
         <Stage className="absolute inset-0" camera={{ position: ANATOMY_CAM.position, fov: ANATOMY_CAM.fov }} bloom={mode === "optics" ? 0.9 : mode === "anatomy" ? 0.55 : 0.3} effects>
           <Suspense fallback={null}>
+            <CompileGate key={mode}>
             {mode === "optics" ? (
               <OpticsScene key="optics" axial={axial} accommodation={acc} pupil={pupil} objectDist={objectDist} lensPower={optics.lensPower} />
             ) : mode === "anatomy" ? (
@@ -64,6 +65,7 @@ export default function EyeLab() {
             ) : (
               <CoverageScene key="coverage" k={cov} />
             )}
+            </CompileGate>
           </Suspense>
         </Stage>
       )}

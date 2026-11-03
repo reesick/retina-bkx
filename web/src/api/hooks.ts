@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "./client";
-import type { Encounter, Outcome, ReferralList, ReferralUpdate, ReviewCreate, VAUpdate } from "./types";
+import { api, ApiError } from "./client";
+import type { Encounter, Failures, Outcome, ReferralList, ReferralUpdate, ReviewCreate, VAUpdate } from "./types";
 
 export const qk = {
   health: ["health"] as const,
@@ -11,6 +11,7 @@ export const qk = {
   referrals: ["referrals"] as const,
   audit: ["audit"] as const,
   metrics: ["metrics"] as const,
+  failures: ["failures"] as const,
   policy: ["policy"] as const,
   demo: ["demo"] as const,
 };
@@ -25,6 +26,18 @@ export const useQueue = () => useQuery({ queryKey: qk.queue, queryFn: api.queue 
 export const useReferrals = () => useQuery({ queryKey: qk.referrals, queryFn: () => api.referrals() });
 export const useAudit = () => useQuery({ queryKey: qk.audit, queryFn: () => api.audit() });
 export const useMetrics = () => useQuery({ queryKey: qk.metrics, queryFn: api.metrics, staleTime: 60000 });
+/** Failure gallery; a server without the endpoint (404) is treated as "not generated yet". */
+export const useFailures = (enabled = true) => useQuery({
+  queryKey: qk.failures, enabled, staleTime: 60000, retry: 0,
+  queryFn: async () => {
+    try {
+      return await api.failures();
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) return { available: false } as Failures;
+      throw e;
+    }
+  },
+});
 export const usePolicy = () => useQuery({ queryKey: qk.policy, queryFn: api.policy, staleTime: 60000 });
 export const useDemoCases = () => useQuery({ queryKey: qk.demo, queryFn: api.demoCases, staleTime: Infinity });
 

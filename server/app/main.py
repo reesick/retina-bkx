@@ -347,6 +347,25 @@ def create_app(pipeline: Any = None, data_dir: Optional[Path] = None, models_dir
                  "thumb": f"/api/demo-cases/{c.get('name')}/thumb", "eye": c.get("eye"), "view": c.get("view")}
                 for c in ready().demo_cases()]
 
+    # ------------------------------------------------------------ failure gallery (real cases where the AI was wrong)
+    @api.get("/failures")
+    def failures():
+        f = ready().settings.demo_dir / "failures" / "failures.json"
+        if not f.exists():
+            return {"cases": [], "available": False}
+        d = json.loads(f.read_text(encoding="utf-8"))
+        for c in d.get("cases", []):
+            c["image"] = f"/api/failures/{c['file']}"
+        return {**d, "available": True}
+
+    @api.get("/failures/{file}")
+    def failure_image(file: str):
+        root = (ready().settings.demo_dir / "failures").resolve()
+        p = (root / file).resolve()
+        if root not in p.parents or not p.exists() or p.suffix.lower() != ".jpg":
+            raise StarletteHTTPException(status_code=404, detail="not found")
+        return Response(p.read_bytes(), media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+
     @api.get("/demo-cases/{name}/thumb")
     def demo_thumb(name: str):
         return Response(ready().demo_thumb(name), media_type="image/jpeg",

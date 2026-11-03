@@ -193,9 +193,83 @@ export interface MetricsAvailable {
   explanations?: Record<string, Record<string, unknown> | number>;
   latency_ms?: { p50?: number; p95?: number; cpu?: string } & Record<string, unknown>;
   determinism?: { verified?: boolean } & Record<string, unknown>;
+  app_eval?: AppEval;
+  leakage_check?: LeakageCheck;
+  site_calibration?: SiteCalibration;
+  quantization?: Quantization;
   notes: string[];
 }
 export type Metrics = MetricsAvailable | { available: false };
+
+// ---------------------------------------------------------------- app-level evaluation (optional keys)
+
+export type EvalSet = "idrid" | "ddr" | "deepdrid_val" | "aptos_test";
+export interface AppTriage {
+  n?: number; n_gradable?: number; coverage?: number; auto_sens?: number | null; auto_spec?: number | null;
+  routine_rate?: number; referral_rate?: number; human_review_rate?: number; retake_rate?: number;
+  referable_routed_routine?: number; referable_total?: number; nonreferable_routine_rate?: number | null;
+  ungradable_n?: number; ungradable_routine?: number; excluded_lesion_train_overlap?: number; landmarks?: string;
+}
+export type QualityBand = "adequate" | "usable" | "inadequate";
+export type BandMetrics = AppTriage & { share?: number; auroc?: number | null };
+export interface EncounterLevel {
+  n_eyes?: number; n_patients?: number; referable_patients?: number;
+  referable_routed_routine?: number; referable_total?: number; referable_not_routine_rate?: number | null;
+  nonreferable_routine_rate?: number | null; outcomes?: Partial<Record<Outcome, number>>;
+}
+export interface EncounterView {
+  eye_level?: EncounterLevel; patient_level_va_not_recorded?: EncounterLevel; patient_level_va_assumed_normal?: EncounterLevel;
+}
+export interface GateArm {
+  referable_routed_routine?: number; referable_total?: number; routine_rate?: number; retake_rate?: number;
+  human_review_rate?: number; referral_rate?: number; wrong_auto_decisions?: number;
+}
+export interface AppEval {
+  method?: string;
+  fidelity_gpu_vs_onnx?: { n?: number; outcome_agreement?: number; max_abs_diff_p_referable?: number };
+  sets?: Partial<Record<EvalSet, AppTriage>>;
+  quality_bands?: Partial<Record<EvalSet, Partial<Record<QualityBand, BandMetrics>>>>;
+  macular_risk_vs_dme?: { n?: number; dme_positive?: number; sensitivity?: number | null; specificity?: number | null; ppv?: number | null; npv?: number | null; note?: string };
+  deepdrid_encounters?: { single_view?: EncounterView; dual_view?: EncounterView; note?: string };
+  quality_gate_ablation?: { n?: number; with_quality_gate?: GateArm; without_quality_gate?: GateArm };
+}
+export interface LeakageSet {
+  overlapping_images?: number; n_after_removal?: number; referable_routed_routine?: number; referable_total?: number;
+  human_review_rate?: number; coverage?: number; auto_sens?: number | null;
+  full_set?: { referable_routed_routine?: number; referable_total?: number; human_review_rate?: number; coverage?: number };
+}
+export interface LeakageCheck { method?: string; scope?: string; idrid?: LeakageSet; ddr?: LeakageSet }
+export interface SiteArm {
+  auroc?: number | null; sens?: number | null; spec?: number | null; ppv?: number | null; npv?: number | null; ece?: number | null; t_refer?: number | null;
+  triage?: { n?: number; human_review_rate?: number; routine_rate?: number; referable_routed_routine?: number; referable_total?: number; nonreferable_routine_rate?: number | null };
+}
+export interface SiteCalibration {
+  profile?: { site?: string; temperatures?: Record<string, number>; t_refer?: number; provenance?: string | Record<string, unknown> };
+  test?: { dataset?: string; generic?: SiteArm; site_calibrated?: SiteArm };
+}
+export interface Quantization {
+  model?: string; method?: string; size_mb?: { fp32?: number; int8?: number }; cpu_ms_per_image?: { fp32?: number; int8?: number };
+  idrid_auroc_vit?: { fp32?: number; int8?: number }; idrid_auroc_ensemble?: { fp32?: number; int8?: number };
+  max_abs_diff_p_referable_ensemble?: number; decision_flips_at_t_refer?: number; n?: number; accepted?: boolean;
+}
+export interface ExplanationIoU { dataset?: string; top_5pct?: { cnn?: number; vit?: number; random?: number }; top_10pct?: { cnn?: number; vit?: number; random?: number }; note?: string }
+export interface ExplanationStability { dataset?: string; spearman_original_vs_perturbed?: Record<string, { cnn?: number; vit?: number }>; note?: string }
+export interface ExplanationRuntime { grader_cnn?: number; grader_vit?: number; note?: string }
+
+// ---------------------------------------------------------------- /api/failures
+
+export type FailureCategory = "missed_referable" | "over_referral" | "abstained_healthy" | "wrong_retake";
+export interface FailureCase {
+  file?: string; image: string; dataset: string; image_id: string; category: FailureCategory;
+  dataset_grade: number | null; dataset_grade_label?: string; outcome: Outcome; urgency?: Urgency;
+  p_referable: number | null; predicted_grade?: number | null; quality?: string;
+  quality_reasons?: string[]; reasons?: (string | Reason)[]; fired_rules?: string[];
+  uncertainty?: { entropy?: number; disagreement?: number; ood_score?: number };
+  license?: string;
+}
+export interface Failures {
+  available: boolean; cases?: FailureCase[]; idrid_counts?: Partial<Record<FailureCategory, number>>; note?: string;
+}
 
 // ---------------------------------------------------------------- policy.json
 

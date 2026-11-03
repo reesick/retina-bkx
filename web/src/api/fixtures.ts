@@ -318,6 +318,60 @@ function riskCoverage(base: number) {
   return { coverage, risk };
 }
 
+/** MOCK app-level evaluation: plausible shapes, invented numbers. */
+function mockAppEval(): NonNullable<MetricsAvailable["app_eval"]> {
+  const set = (n: number, refTot: number, missed: number, routine: number, refer: number, review: number, retake: number, cov: number, s: number, sp: number) => ({
+    n, n_gradable: Math.round(n * (1 - retake)), coverage: cov, auto_sens: s, auto_spec: sp, routine_rate: routine, referral_rate: refer,
+    human_review_rate: review, retake_rate: retake, referable_routed_routine: missed, referable_total: refTot, nonreferable_routine_rate: routine / Math.max(0.01, 1 - refTot / n),
+    ungradable_n: Math.round(n * retake * 1.2), ungradable_routine: 0, excluded_lesion_train_overlap: n > 1000 ? 58 : 40, landmarks: "out-of-fold (MOCK)",
+  });
+  const band = (share: number, auroc: number | null, routine: number, refer: number, review: number, retake: number) =>
+    ({ share, auroc, routine_rate: routine, referral_rate: refer, human_review_rate: review, retake_rate: retake });
+  const lvl = (n: number, refTot: number, missed: number, o: [number, number, number, number]) => ({
+    n_eyes: n, referable_routed_routine: missed, referable_total: refTot, referable_not_routine_rate: 1 - missed / refTot, nonreferable_routine_rate: o[0] / (n - refTot),
+    outcomes: { ROUTINE: o[0], REFER: o[1], HUMAN_REVIEW: o[2], RETAKE: o[3] },
+  });
+  const pat = (n: number, refP: number, missed: number, o: [number, number, number, number]) => ({
+    n_patients: n, referable_patients: refP, referable_routed_routine: missed, nonreferable_routine_rate: o[0] / (n - refP),
+    outcomes: { ROUTINE: o[0], REFER: o[1], HUMAN_REVIEW: o[2], RETAKE: o[3] },
+  });
+  return {
+    method: "MOCK · the app's own pipeline (quality gate, graders, lesion rules, policy) replayed on test images",
+    fidelity_gpu_vs_onnx: { n: 200, outcome_agreement: 0.995, max_abs_diff_p_referable: 0.004 },
+    sets: {
+      idrid: set(476, 245, 1, 0.13, 0.22, 0.6, 0.05, 0.35, 0.98, 0.93),
+      ddr: set(4047, 1660, 51, 0.3, 0.29, 0.36, 0.05, 0.59, 0.91, 0.9),
+      deepdrid_val: set(400, 162, 4, 0.24, 0.2, 0.45, 0.11, 0.44, 0.93, 0.88),
+      aptos_test: set(550, 226, 2, 0.4, 0.34, 0.23, 0.03, 0.74, 0.97, 0.95),
+    },
+    quality_bands: {
+      idrid: { adequate: band(0.71, 0.93, 0.15, 0.24, 0.59, 0), usable: band(0.24, 0.88, 0.1, 0.2, 0.66, 0.04), inadequate: band(0.05, null, 0, 0, 0.2, 0.8) },
+      ddr: { adequate: band(0.62, 0.92, 0.34, 0.3, 0.34, 0.02), usable: band(0.29, 0.86, 0.25, 0.27, 0.44, 0.04), inadequate: band(0.09, 0.71, 0.01, 0.05, 0.31, 0.63) },
+      deepdrid_val: { adequate: band(0.6, 0.9, 0.3, 0.22, 0.46, 0.02), usable: band(0.25, 0.84, 0.18, 0.2, 0.55, 0.07), inadequate: band(0.15, 0.7, 0, 0.04, 0.3, 0.66) },
+      aptos_test: { adequate: band(0.8, 0.98, 0.42, 0.35, 0.21, 0.02), usable: band(0.17, 0.95, 0.33, 0.32, 0.31, 0.04), inadequate: band(0.03, null, 0, 0, 0.25, 0.75) },
+    },
+    macular_risk_vs_dme: { n: 516, dme_positive: 243, sensitivity: 0.83, specificity: 0.78, ppv: 0.77, npv: 0.84, note: "MOCK: IDRiD 'risk of macular oedema' labels; the cue looks for exudates near the fovea." },
+    deepdrid_encounters: {
+      single_view: {
+        eye_level: lvl(200, 81, 3, [52, 46, 91, 11]),
+        patient_level_va_not_recorded: pat(100, 49, 0, [0, 41, 57, 2]),
+        patient_level_va_assumed_normal: pat(100, 49, 2, [21, 41, 36, 2]),
+      },
+      dual_view: {
+        eye_level: lvl(200, 81, 1, [47, 52, 95, 6]),
+        patient_level_va_not_recorded: pat(100, 49, 0, [0, 44, 55, 1]),
+        patient_level_va_assumed_normal: pat(100, 49, 1, [19, 44, 36, 1]),
+      },
+      note: "MOCK: DeepDRiD records no visual acuity. Without VA the policy never clears a patient as ROUTINE; the second row assumes normal VA to show what the images alone would do.",
+    },
+    quality_gate_ablation: {
+      n: 4047,
+      with_quality_gate: { referable_routed_routine: 51, referable_total: 1660, routine_rate: 0.3, retake_rate: 0.05, human_review_rate: 0.36, referral_rate: 0.29, wrong_auto_decisions: 212 },
+      without_quality_gate: { referable_routed_routine: 88, referable_total: 1660, routine_rate: 0.34, retake_rate: 0, human_review_rate: 0.35, referral_rate: 0.31, wrong_auto_decisions: 331 },
+    },
+  };
+}
+
 export function mockMetrics(): MetricsAvailable {
   const P_APTOS = [0.49, 0.1, 0.27, 0.05, 0.09], P_IDRID = [0.33, 0.05, 0.33, 0.18, 0.11], P_DDR = [0.46, 0.05, 0.33, 0.06, 0.1];
   const R1 = [0.97, 0.52, 0.8, 0.41, 0.6], R2 = [0.92, 0.18, 0.69, 0.42, 0.51], R3 = [0.9, 0.11, 0.64, 0.29, 0.55];
@@ -354,6 +408,29 @@ export function mockMetrics(): MetricsAvailable {
       pointing_game: { cam: 0.71, attention: 0.63, n: 81 },
       deletion_auc: { cam: 0.22, attention: 0.27, random: 0.41 },
       randomisation_ssim: { cam: 0.14, attention: 0.19, passed: 1 },
+      iou: { dataset: "MOCK · IDRiD segmentation test (n=27)", top_5pct: { cnn: 0.18, vit: 0.21, random: 0.04 }, top_10pct: { cnn: 0.22, vit: 0.24, random: 0.07 }, note: "MOCK: IoU of the top-k% map pixels with the union of lesion masks." },
+      stability: { dataset: "MOCK · APTOS test (n=60)", spearman_original_vs_perturbed: { brightness: { cnn: 0.91, vit: 0.86 }, blur: { cnn: 0.78, vit: 0.83 }, jpeg: { cnn: 0.94, vit: 0.9 }, rotate_5deg: { cnn: 0.72, vit: 0.69 } }, note: "MOCK: rank correlation between maps before and after a small change." },
+      runtime_ms: { grader_cnn: 41, grader_vit: 63, note: "MOCK: extra CPU time per image to produce the map." },
+    },
+    app_eval: mockAppEval(),
+    leakage_check: {
+      method: "MOCK · 32x32 grey thumbnail match between test images and lesion-model training images",
+      scope: "affects only the lesion rules of the triage simulation; grader AUROC is unaffected",
+      idrid: { overlapping_images: 40, n_after_removal: 476, referable_routed_routine: 1, referable_total: 245, human_review_rate: 0.66, coverage: 0.34, auto_sens: 0.98, full_set: { referable_routed_routine: 2, referable_total: 286, human_review_rate: 0.67, coverage: 0.33 } },
+      ddr: { overlapping_images: 58, n_after_removal: 4047, referable_routed_routine: 51, referable_total: 1660, human_review_rate: 0.4, coverage: 0.62, auto_sens: 0.91, full_set: { referable_routed_routine: 53, referable_total: 1690, human_review_rate: 0.41, coverage: 0.61 } },
+    },
+    site_calibration: {
+      profile: { site: "MOCK · DeepDRiD camera", temperatures: { grader_cnn: 1.31, grader_vit: 1.18 }, t_refer: 0.41, provenance: "MOCK: fitted on 300 DeepDRiD validation images" },
+      test: {
+        dataset: "MOCK · DeepDRiD held-out test (n=400)",
+        generic: { auroc: 0.86, sens: 0.81, spec: 0.79, ppv: 0.72, npv: 0.86, ece: 0.094, t_refer: 0.384, triage: { n: 400, human_review_rate: 0.52, routine_rate: 0.24, referable_routed_routine: 6, referable_total: 162, nonreferable_routine_rate: 0.39 } },
+        site_calibrated: { auroc: 0.86, sens: 0.85, spec: 0.77, ppv: 0.71, npv: 0.88, ece: 0.041, t_refer: 0.41, triage: { n: 400, human_review_rate: 0.44, routine_rate: 0.29, referable_routed_routine: 4, referable_total: 162, nonreferable_routine_rate: 0.47 } },
+      },
+    },
+    quantization: {
+      model: "grader_vit", method: "MOCK · dynamic INT8 (MatMul weights)", size_mb: { fp32: 345, int8: 91 }, cpu_ms_per_image: { fp32: 1180, int8: 790 },
+      idrid_auroc_vit: { fp32: 0.89, int8: 0.88 }, idrid_auroc_ensemble: { fp32: 0.92, int8: 0.91 }, max_abs_diff_p_referable_ensemble: 0.21,
+      decision_flips_at_t_refer: 19, n: 516, accepted: false,
     },
     latency_ms: { p50: 980, p95: 1460, cpu: "Mock CPU (8 threads)" },
     notes: [

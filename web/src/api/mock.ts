@@ -1,7 +1,7 @@
 // In-browser mock of the whole API (VITE_MOCK=1). MOCK DATA ONLY: in-memory, resets on reload.
 import { ApiError, type Method } from "./client";
 import type {
-  AuditEntry, AuditList, AuditVerify, DemoCase, Encounter, EncounterCreate, EncounterSummary, Eye, Health, ImageResult,
+  AuditEntry, AuditList, AuditVerify, DemoCase, Encounter, EncounterCreate, EncounterSummary, Eye, FailureCase, FailureCategory, Failures, Grade, Health, ImageResult,
   LesionType, Outcome, ProgressEvent, Referral, ReferralList, ReferralStatus, ReferralUpdate, ReplayResult, ReviewCreate,
   StepEvent, StepName, TodayStats, VAUpdate, View,
 } from "./types";
@@ -334,6 +334,37 @@ const UPLOAD_SCENARIOS: Scenario[] = [
   { grade: 2, macular: true }, { grade: 0, spread: true }, { grade: 4 },
 ];
 
+// ------------------------------------------------------------------ failure gallery (MOCK)
+let failuresCache: Failures | null = null;
+function mockFailures(): Failures {
+  if (failuresCache) return failuresCache;
+  const defs: { cat: FailureCategory; grade: Grade; outcome: Outcome; p: number; pg: Grade; q: string; reason: string; rules: string[]; sc: Scenario }[] = [
+    { cat: "missed_referable", grade: 2, outcome: "ROUTINE", p: 0.21, pg: 1, q: "adequate", reason: "Estimated grade 1 · P(referable) 0.21", rules: ["R0_quality_ok", "R6_routine"], sc: { grade: 1 } },
+    { cat: "missed_referable", grade: 3, outcome: "ROUTINE", p: 0.28, pg: 1, q: "usable", reason: "Few lesion candidates found", rules: ["R0_quality_ok", "R6_routine"], sc: { grade: 1, quality: "usable", issue: "blur" } },
+    { cat: "over_referral", grade: 0, outcome: "REFER", p: 0.71, pg: 2, q: "adequate", reason: "Estimated grade 2 · P(referable) 0.71", rules: ["R2_refer_threshold"], sc: { grade: 2 } },
+    { cat: "over_referral", grade: 1, outcome: "REFER", p: 0.55, pg: 2, q: "adequate", reason: "Haemorrhage area above the lesion rule", rules: ["R1a_lesion_area", "R2_refer_threshold"], sc: { grade: 2 } },
+    { cat: "abstained_healthy", grade: 0, outcome: "HUMAN_REVIEW", p: 0.33, pg: 0, q: "usable", reason: "The two graders disagree", rules: ["R4_disagreement"], sc: { grade: 0, disagree: true } },
+    { cat: "abstained_healthy", grade: 0, outcome: "HUMAN_REVIEW", p: 0.19, pg: 0, q: "adequate", reason: "Image looks unlike the training photos", rules: ["R4_ood"], sc: { grade: 0, spread: true } },
+    { cat: "wrong_retake", grade: 0, outcome: "RETAKE", p: 0.08, pg: 0, q: "inadequate", reason: "Too dark to see the retina", rules: ["R0_quality_hard_fail"], sc: { grade: 0, quality: "inadequate", issue: "dark" } },
+  ];
+  const cases: FailureCase[] = defs.map((d, i) => {
+    const a = analyse(9100 + i * 31, d.sc, i % 2 ? "OS" : "OD", "macula", 45);
+    return {
+      file: `mock_${i}.jpg`, image: toJpeg(drawFundus(a.art, 320), 0.82), dataset: "idrid", image_id: `MOCK_${String(i + 1).padStart(3, "0")}`,
+      category: d.cat, dataset_grade: d.grade, dataset_grade_label: ["No DR", "Mild NPDR", "Moderate NPDR", "Severe NPDR", "PDR"][d.grade],
+      outcome: d.outcome, urgency: d.outcome === "REFER" ? "soon" : d.outcome === "ROUTINE" ? "routine_12m" : null, p_referable: d.p, predicted_grade: d.pg,
+      quality: d.q, quality_reasons: d.q === "inadequate" ? ["DARK"] : d.q === "usable" ? ["BLUR"] : [], reasons: [d.reason], fired_rules: d.rules,
+      uncertainty: { entropy: 0.6 + i * 0.05, disagreement: d.cat === "abstained_healthy" ? 0.31 : 0.08, ood_score: d.rules.includes("R4_ood") ? 1.4 : 0.6 },
+      license: "MOCK image (generated)",
+    };
+  });
+  failuresCache = {
+    available: true, cases, idrid_counts: { missed_referable: 2, over_referral: 31, abstained_healthy: 64, wrong_retake: 9 },
+    note: "MOCK: generated pictures and invented counts for UI development.",
+  };
+  return failuresCache;
+}
+
 // ------------------------------------------------------------------ router
 function need<T>(x: T | undefined | null, what = "Not found"): T {
   if (x === undefined || x === null) throw new ApiError(404, what);
@@ -526,6 +557,7 @@ export async function handle<T>(method: Method, fullPath: string, body?: unknown
     return out({ valid: bad === null, checked: db.audit.length, first_bad_seq: bad } satisfies AuditVerify);
   }
   if (method === "GET" && path === "/metrics") return out(mockMetrics());
+  if (method === "GET" && path === "/failures") return out(mockFailures());
   if (method === "GET" && path === "/policy") return out(MOCK_POLICY);
   if (seg[0] === "demo-cases") {
     if (seg.length === 1 && method === "GET") {

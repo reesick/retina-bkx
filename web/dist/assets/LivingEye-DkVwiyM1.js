@@ -1,4 +1,4 @@
-import{a as e,j as c}from"./ui-1z3KOePw.js";import{u as z,ac as N,h as F}from"./three-BkJhpqVu.js";import{S as O,E as Y,I as B}from"./Stage-D1q_jxOx.js";import{s as D,e as G}from"./index-vrU1RJiw.js";import{a as H,u as A}from"./r3f-DMb_JfbV.js";const I=450,W=["sclera","iris","pupil","cornea"],S=74,X=44;function Z({strength:r}){const t=e.useMemo(()=>new z({uniforms:{uStrength:{value:.25},uColor:{value:new F("#cfe4ff")}},vertexShader:`
+import{a as e,j as c}from"./ui-1z3KOePw.js";import{u as z,ac as N,h as F}from"./three-CmWbwWp9.js";import{S as O,E as Y,I as B}from"./Stage-Bsq4S9Ss.js";import{s as D,e as G}from"./index-Dmcia6hW.js";import{a as H,u as A}from"./r3f-CgDJ-BDv.js";const I=450,W=["sclera","iris","pupil","cornea"],S=74,X=44;function Z({strength:r}){const t=e.useMemo(()=>new z({uniforms:{uStrength:{value:.25},uColor:{value:new F("#cfe4ff")}},vertexShader:`
           varying vec3 vN; varying vec3 vV;
           void main() {
             vec4 mv = modelViewMatrix * vec4(position, 1.0);

@@ -18,6 +18,8 @@ import { LargeTitle } from "../components/TopBar";
 import { fx, LESION_COLOR, LESION_NAME, LESION_TYPES, pct, shortTime } from "../lib/format";
 import { useSession } from "../lib/session";
 import { IS_MOCK } from "../api/client";
+import { Big, Card, Empty, Lazy } from "./evidence/kit";
+import { AppDecides, ByQuality, Encounters, ExplanationExtras, explanationBasics, FailureGallery, GateAblation, Leakage, MacularDme, QuantCard, SiteCal } from "./evidence/AppSections";
 
 const DATASETS = [
   { value: "idrid", label: "IDRiD · external" },
@@ -62,18 +64,6 @@ function EvidenceSkeleton() {
       <Skeleton className="h-[360px] !rounded-card" />
       <div className="grid gap-4 md:grid-cols-2"><Skeleton className="h-72 !rounded-card" /><Skeleton className="h-72 !rounded-card" /></div>
     </div>
-  );
-}
-
-function Card({ title, caption, how, takeaway, children, className = "" }: { title: string; caption?: string; how?: ReactNode; takeaway?: ReactNode; children: ReactNode; className?: string }) {
-  return (
-    <motion.section initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ duration: 0.4 }} className={`card flex flex-col p-5 ${className}`}>
-      <h3 className="text-title">{title}</h3>
-      {caption && <p className="mt-0.5 text-footnote text-l2">{caption}</p>}
-      {how && <p className="mt-2 rounded-[12px] bg-white/[0.04] px-3 py-2 text-[13px] leading-snug text-white/80"><span className="font-semibold text-white">How to read this: </span>{how}</p>}
-      <div className="mt-4 flex-1">{children}</div>
-      {takeaway && <p className="mt-3 border-t border-white/[0.08] pt-3 text-[14px] font-medium leading-snug text-white">{takeaway}</p>}
-    </motion.section>
   );
 }
 
@@ -219,6 +209,8 @@ function Report({ m }: { m: MetricsAvailable }) {
         </div>
       )}
 
+      <AppEvalSections m={m} ds={ds} />
+
       <RealExamples />
 
       <Card title="Internal vs external" caption="The drop on external data is shown, not hidden. Same model, same thresholds."
@@ -226,7 +218,7 @@ function Report({ m }: { m: MetricsAvailable }) {
         <Compare m={m} md={md} />
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-flow-row-dense md:grid-cols-2">
         <Card title="Quality gate" caption="Against real quality labels (DeepDRiD) and DDR's ungradable images.">
           <KV obj={m.quality} />
         </Card>
@@ -252,8 +244,11 @@ function Report({ m }: { m: MetricsAvailable }) {
         <Card title="Landmarks" caption="Distance error in disc diameters (DD).">
           <KV obj={m.landmarks} />
         </Card>
-        <Card title="Explanation tests" caption="Do attention maps point at lesions, and do they depend on the trained weights?">
-          <KV obj={m.explanations} />
+        <Card className="md:col-span-2" title="Explanation tests" caption="Do attention maps point at lesions, and do they depend on the trained weights?">
+          <div className="grid gap-6 md:grid-cols-2">
+            <KV obj={explanationBasics(m.explanations)} />
+            <ExplanationExtras e={m.explanations} />
+          </div>
         </Card>
         <Card title="Latency" caption="Per image, all models, on this kind of CPU.">
           {m.latency_ms ? (
@@ -277,16 +272,32 @@ function Report({ m }: { m: MetricsAvailable }) {
   );
 }
 
-const Empty = () => <div className="py-6 text-center text-[13px] text-l3">Not measured.</div>;
-
-function Big({ label, v, color }: { label: string; v: string; color?: string }) {
+/** App-level evaluation sections; each renders only when its metrics key exists. Below the fold: lazy. */
+const AppEvalSections = memo(function AppEvalSections({ m, ds }: { m: MetricsAvailable; ds: string }) {
+  const ev = m.app_eval;
   return (
-    <div className="rounded-[16px] bg-s2/60 p-3">
-      <div className="num text-[24px] font-semibold leading-none" style={{ color }}>{v}</div>
-      <div className="mt-1.5 text-[12px] text-l2">{label}</div>
-    </div>
+    <>
+      {ev?.sets && <Lazy minHeight={420}><AppDecides ev={ev} /></Lazy>}
+      {ev?.quality_bands && <Lazy minHeight={300}><ByQuality ev={ev} preferred={ds} /></Lazy>}
+      {ev?.quality_gate_ablation && (
+        <div className={`grid gap-4 ${ev.macular_risk_vs_dme ? "lg:grid-cols-2" : ""}`}>
+          {ev?.quality_gate_ablation && <Lazy minHeight={360}><GateAblation ab={ev.quality_gate_ablation} /></Lazy>}
+          {ev?.macular_risk_vs_dme && <Lazy minHeight={360}><MacularDme m={ev.macular_risk_vs_dme} /></Lazy>}
+        </div>
+      )}
+      {ev?.deepdrid_encounters && <Lazy minHeight={420}><Encounters enc={ev.deepdrid_encounters} /></Lazy>}
+      {!ev?.quality_gate_ablation && ev?.macular_risk_vs_dme && <Lazy minHeight={300}><MacularDme m={ev.macular_risk_vs_dme} /></Lazy>}
+      {(m.site_calibration || m.leakage_check) && (
+        <div className={`grid gap-4 ${m.site_calibration && m.leakage_check ? "lg:grid-cols-2" : ""}`}>
+          {m.site_calibration && <Lazy minHeight={380}><SiteCal sc={m.site_calibration} /></Lazy>}
+          {m.leakage_check && <Lazy minHeight={300}><Leakage lc={m.leakage_check} /></Lazy>}
+        </div>
+      )}
+      {m.quantization && <Lazy minHeight={320}><QuantCard q={m.quantization} /></Lazy>}
+      <Lazy minHeight={360}><FailureGallery /></Lazy>
+    </>
   );
-}
+});
 
 function KV({ obj }: { obj: unknown }) {
   if (!obj || typeof obj !== "object" || !Object.keys(obj).length) return <Empty />;

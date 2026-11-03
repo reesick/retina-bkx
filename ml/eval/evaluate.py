@@ -357,7 +357,7 @@ def main():
         "DDR grade 5 (ungradable) images are excluded from grading metrics and used to test the quality gate.",
     ]
     old = load_json(MODELS_OUT / "metrics.json", {})
-    for k in ["lesions", "landmarks", "explanations", "latency_ms"]:
+    for k in ["lesions", "landmarks", "explanations", "latency_ms", "laterality", "determinism", "quantization", "leakage_check", "app_eval", "site_calibration"]:
         if k in old:
             metrics[k] = old[k]
     save_json(MODELS_OUT / "metrics.json", metrics)

@@ -151,37 +151,48 @@ def fetch_idrid() -> None:
     if not done("idrid:grading"):
         z = _idrid_zip("B.Disease_Grading.zip")
         zl = _idrid_zip("C.Localization.zip")
+        # IDRiD reuses the same file names in its training and testing sets (IDRiD_001.. in both), so every key is
+        # (split, name) and test images get their own id (IDRiD_T001 ..). Without this, test images overwrite
+        # training images on disk.
+        def uid(split: str, name: str) -> str:
+            return name if split == "train" else name.replace("IDRiD_", "IDRiD_T")
+
         labels = {}
         for m in z.namelist():
             if m.lower().endswith(".csv"):
                 split = "train" if "Training" in m else "test"
                 for r in _read_csv_from_zip(z, m)[1:]:
-                    labels[r[0].strip()] = (split, int(r[1]), int(r[2]))
-        cents: dict[str, dict] = {}
+                    labels[(split, r[0].strip())] = (int(r[1]), int(r[2]))
+        cents: dict[tuple, dict] = {}
         for m in zl.namelist():
             if m.lower().endswith(".csv"):
                 kind = "od" if "OD_Center" in m else "fovea"
+                split = "train" if "Training" in m else "test"
                 for r in _read_csv_from_zip(zl, m)[1:]:
                     if len(r) >= 3 and r[1].strip():
-                        cents.setdefault(r[0].strip(), {})[kind] = (float(r[1]), float(r[2]))
+                        cents.setdefault((split, r[0].strip()), {})[kind] = (float(r[1]), float(r[2]))
         rows = []
         out = PROC / "idrid"
+        shutil.rmtree(out / "img", ignore_errors=True)
         for m in sorted(z.namelist()):
             if not m.lower().endswith(".jpg"):
                 continue
             name = Path(m).stem
-            if name not in labels:
+            split = "train" if "Training" in m else "test"
+            if (split, name) not in labels:
                 continue
-            split, grade, dme = labels[name]
+            grade, dme = labels[(split, name)]
+            rid = uid(split, name)
             rgb = decode_image(z.read(m))
             sq, tr = crop_square(rgb, GRADE_SIZE)
-            save_jpg(out / "img" / f"{name}.jpg", sq)
-            c = cents.get(name, {})
+            save_jpg(out / "img" / f"{rid}.jpg", sq)
+            c = cents.get((split, name), {})
             od = tr.to_canonical(*c["od"]) if "od" in c else (None, None)
             fv = tr.to_canonical(*c["fovea"]) if "fovea" in c else (None, None)
-            rows.append({"id": name, "split": split, "grade": grade, "dme": dme,
+            rows.append({"id": rid, "split": split, "grade": grade, "dme": dme,
                          "od_x": od[0], "od_y": od[1], "fovea_x": fv[0], "fovea_y": fv[1],
                          "orig_w": tr.orig_w, "orig_h": tr.orig_h, "scale": tr.scale})
+        assert len({r["id"] for r in rows}) == len(rows), "IDRiD ids must be unique"
         write_csv(out / "labels.csv", rows)
         log("IDRiD graded images:", len(rows))
         z.close(); zl.close()

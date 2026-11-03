@@ -1,6 +1,6 @@
 // HTTP client for docs/04_API.md. In VITE_MOCK=1 builds every call is served in-browser by ./mock.
 import type {
-  AuditList, AuditVerify, DemoCase, Encounter, EncounterCreate, EncounterPatch, EncounterSummary, Eye, Health,
+  AuditList, AuditVerify, DemoCase, Encounter, EncounterCreate, EncounterPatch, EncounterSummary, Eye, Failures, Health,
   ImageResult, Metrics, Outcome, Policy, Referral, ReferralList, ReferralStatus, ReferralUpdate, ReplayResult,
   ReviewCreate, TodayStats, VAUpdate, View,
 } from "./types";
@@ -84,6 +84,7 @@ export const api = {
   verifyAudit: () => request<AuditVerify>("GET", "/audit/verify"),
 
   metrics: () => request<Metrics>("GET", "/metrics"),
+  failures: () => request<Failures>("GET", "/failures"),
   policy: () => request<Policy>("GET", "/policy"),
   demoCases: () => request<DemoCase[]>("GET", "/demo-cases"),
   startDemo: (name: string) => request<Encounter>("POST", `/demo-cases/${encodeURIComponent(name)}`),

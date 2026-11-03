@@ -5179,5 +5179,29 @@
         "coverage": 0.6065442936951316
       }
     }
+  },
+  "quantization": {
+    "model": "grader_vit",
+    "method": "onnxruntime dynamic INT8 (MatMul/Gemm weights)",
+    "size_mb": {
+      "fp32": 345.4,
+      "int8": 90.6
+    },
+    "cpu_ms_per_image": {
+      "fp32": 1199.1,
+      "int8": 791.5
+    },
+    "idrid_auroc_vit": {
+      "fp32": 0.8872453633323198,
+      "int8": 0.9201124961994528
+    },
+    "idrid_auroc_ensemble": {
+      "fp32": 0.9174825174825175,
+      "int8": 0.9328519306780176
+    },
+    "max_abs_diff_p_referable_ensemble": 0.34228456020355225,
+    "decision_flips_at_t_refer": 43,
+    "n": 516,
+    "accepted": false
   }
 }
