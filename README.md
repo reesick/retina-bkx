@@ -1,4 +1,4 @@
-# Retinitry
+﻿# Retinitry
 
 Offline, explainable, uncertainty-aware screening triage for diabetic retinopathy. It runs on one laptop with no internet and no GPU.
 Vishwakarandak '26 · Software Track · HEA-S08. **Research prototype. A triage aid, not a diagnosis. Not clinically validated.**
@@ -13,6 +13,8 @@ A health worker records visual acuity and uploads retinal photos of both eyes. R
 
 A clinician then signs off or overrides. Referrals are tracked until closed, every action goes into a tamper-evident audit log,
 and the evidence is drawn in 2D and on a 3D eye that shows which part of the retina was never photographed.
+
+**New here? Read [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md)** for what it is, how it was built, the features and why they exist, and what makes it different.
 
 ---
 

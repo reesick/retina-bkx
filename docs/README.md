@@ -1,4 +1,4 @@
-# Retinitry docs
+﻿# Retinitry docs
 
 Retinitry is an offline, deterministic research prototype for diabetic-retinopathy (DR) screening triage
 (Vishwakarandak '26, Software Track, HEA-S08). It takes retinal photos, checks whether they are good enough,
@@ -7,6 +7,7 @@ final decision to a clinician.
 
 | File | What it answers |
 |---|---|
+| **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** | **What the project is, how it was built, features and why, USPs** |
 | **[handoff/00_START_HERE.md](handoff/00_START_HERE.md)** | **Current handoff: status, architecture, results, runbook, risks, next steps. Start here.** |
 | [01_PRODUCT.md](01_PRODUCT.md) | What we build, for whom, which features are in, wording rules |
 | [02_ARCHITECTURE.md](02_ARCHITECTURE.md) | System design, pipeline, triage policy, data model, determinism, offline |
