@@ -41,7 +41,7 @@ folder disagree, **this folder is current**.
 | Web app (all screens, 3D eye, Eye Lab) | Built. An automated browser QA run reports 0 failures, **but it runs in software WebGL**; it has not been measured on a real GPU |
 | Safety behaviour | 3 of 286 referable IDRiD eyes and 66 of 1,690 referable DDR eyes were cleared as ROUTINE (see 03) |
 | Biggest weaknesses | Specificity on IDRiD 0.80 and 70% of IDRiD cases sent to human review; grade-0 recall on IDRiD 0.43; microaneurysm segmentation weak (Dice 0.24 on DDR); quality model AUROC 0.80 on real labels |
-| Biggest handoff trap | **The trained model files (`server/models/*.onnx`, ~527 MB) are NOT in git.** A fresh clone cannot run until you copy them from this laptop or retrain (about 4–5 h on an RTX 4050). See 04_RUNBOOK §2 |
+| Shipping | **Clone and double-click `START_RETINITRY.bat`.** The models ship in git as 45 MB hash-checked parts (`server/models/parts/`) and are rebuilt on first start; `web/dist` is prebuilt; runtime packages are pinned in `requirements-runtime.txt`. Tested on a fresh clone: launcher installed, rebuilt models, 28/28 e2e checks passed. Needs Python 3.11 on Windows (`start.sh` for macOS/Linux is untested) |
 
 ## Where things are on this machine
 
