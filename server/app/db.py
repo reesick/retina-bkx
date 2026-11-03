@@ -97,6 +97,19 @@ class ReferralEventRow(Base):
     at: Mapped[str] = mapped_column(String)
 
 
+class AgentRunRow(Base):
+    """One LangGraph encounter run (the graph's own checkpoints live in agents.db; this is the app-facing summary)."""
+    __tablename__ = "agent_runs"
+    encounter_id: Mapped[str] = mapped_column(String, ForeignKey("encounters.id"), primary_key=True)
+    thread_id: Mapped[str] = mapped_column(String)
+    run_no: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String, default="queued")   # queued | running | awaiting_signoff | done | error
+    state_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    overrides_json: Mapped[str] = mapped_column(Text, default="{}")
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[str] = mapped_column(String)
+
+
 class AuditRow(Base):
     __tablename__ = "audit"
     seq: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

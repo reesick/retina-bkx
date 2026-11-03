@@ -1,4 +1,6 @@
-﻿# Retinitry handoff: start here
+﻿> **Read [11_FINAL_STATE.md](11_FINAL_STATE.md) first:** IDRiD numbers below predate a data fix and are invalid until the v3 re-run finishes; LangGraph agents are built but not finished.
+
+# Retinitry handoff: start here
 
 This folder is the complete handoff for Retinitry as of **03 Nov 2026** (git `07540dc` plus this folder).
 It is written for someone who has never seen the project. It says plainly what works, what is weak and what is missing.

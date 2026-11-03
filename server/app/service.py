@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from core import policy as P
 
 from . import audit
-from .db import (AuditRow, EncounterRow, ImageRow, LesionRow, ReferralEventRow, ReferralRow, ReviewRow,
+from .db import (AgentRunRow, AuditRow, EncounterRow, ImageRow, LesionRow, ReferralEventRow, ReferralRow, ReviewRow,
                  make_engine, make_sessionmaker)
 from .ids import iso, new_id, parse_iso, patient_code, utcnow
 from .pipeline import CANON, ModelsMissing
@@ -95,6 +95,7 @@ class Service:
         self.engine = None
         self.Session: Callable[[], Session] | None = None
         self._thumbs: dict[str, bytes] = {}
+        self.agents = None
 
     # ------------------------------------------------------------ lifecycle
     def start(self) -> None:
@@ -105,6 +106,11 @@ class Service:
         self.engine = make_engine(self.settings.data_dir / "retinitry.db")
         self.Session = make_sessionmaker(self.engine)
         self.worker.start()
+        import os as _os
+        if _os.environ.get("RETINITRY_AGENTS", "1") != "0":
+            from server.agents.runner import AgentRunner
+            self.agents = AgentRunner(self, self.settings.data_dir / "agents.db")
+            self.agents.start()
         with self.Session() as s:
             pending = s.execute(select(ImageRow).where(ImageRow.status.in_(["queued", "running"]))
                                 .order_by(ImageRow.created_at)).scalars().all()
@@ -116,6 +122,8 @@ class Service:
                 self.worker.submit(r.id)
 
     def stop(self) -> None:
+        if self.agents:
+            self.agents.stop()
         self.worker.stop()
         if self.engine is not None:
             self.engine.dispose()
@@ -234,10 +242,18 @@ class Service:
             e.ai_outcome_json = None
             e.status = "signed" if has_review else "open"
             return None
+        run = s.get(AgentRunRow, e.id)
+        overrides = json.loads(run.overrides_json) if run and run.overrides_json else {}
         imgs = []
         for i in done:
             res = json.loads(i.result_json)
-            imgs.append({"eye": i.eye, "triage": res.get("triage"), "macular_risk": res.get("macular_risk"),
+            tri = res.get("triage")
+            ov = overrides.get(i.id)
+            if ov and tri and tri.get("outcome") == "HUMAN_REVIEW":
+                tri = {**tri, "outcome": ov["outcome"], "urgency": ov.get("urgency"),
+                       "reasons": tri["reasons"] + [{"code": "SECOND_OPINION", "text": "Second-opinion agent: all views consistently referable (" + ov.get("detail", "") + ")."}],
+                       "rule_trace": tri.get("rule_trace", []) + [{"rule": ov.get("rule", "R3b second opinion"), "fired": True, "detail": ov.get("detail", "")}]}
+            imgs.append({"eye": i.eye, "triage": tri, "macular_risk": res.get("macular_risk"),
                          "laterality": (res.get("landmarks") or {}).get("laterality")})
         va = json.loads(e.va_json) if e.va_json else _empty_va()
         ai = P.triage_encounter(images=imgs, va={"OD": va["OD"], "OS": va["OS"]}, policy=self.policy())
@@ -341,7 +357,9 @@ class Service:
                          payload={"va": va, "ai_outcome": ai["outcome"] if ai else None,
                                   "flags": [f["code"] for f in (ai or {}).get("flags", [])]})
             s.commit()
-            return self.encounter_dict(s, e)
+            out = self.encounter_dict(s, e)
+        self._maybe_start_agents(enc_id)
+        return out
 
     # ------------------------------------------------------------ images
     def add_image(self, enc_id: str, data: bytes, filename: str | None, content_type: str | None,
@@ -477,7 +495,9 @@ class Service:
                                   "encounter_outcome": ai["outcome"] if ai else None})
             s.commit()
             done = self.image_dict(r)
+            enc_id = r.encounter_id
         self.broker.publish(image_id, "done", done)
+        self._maybe_start_agents(enc_id)
 
     def _fail(self, image_id: str, message: str) -> None:
         with self.lock, self.Session() as s:
@@ -490,7 +510,9 @@ class Service:
             audit.append(s, "image_failed", encounter_id=r.encounter_id, image_id=image_id, actor="system",
                          payload={"sha256": r.sha256, "error": message})
             s.commit()
+            enc_id = r.encounter_id
         self.broker.publish(image_id, "error", {"message": message})
+        self._maybe_start_agents(enc_id)
 
     def replay(self, image_id: str) -> dict:
         with self.Session() as s:
@@ -578,7 +600,11 @@ class Service:
                 audit.append(s, "referral_moved", encounter_id=e.id, actor=reviewer,
                              payload={"referral_id": ref_id, "from": None, "to": "issued", "note": ""})
             s.commit()
-            return self.encounter_dict(s, e)
+            out = self.encounter_dict(s, e)
+        if self.agents:
+            self.agents.submit("resume", enc_id, {"reviewer": reviewer, "decision": decision, "final_outcome": final,
+                                                  "final_urgency": urg, "reason": reason})
+        return out
 
     # ------------------------------------------------------------ referrals
     def move_referral(self, ref_id: str, body: dict, actor: str = "user") -> dict:
@@ -740,3 +766,211 @@ class Service:
             self.add_image(enc["id"], ip.read_bytes(), ip.name, None, im.get("eye", eye), im.get("view", view),
                            float(im.get("fov_deg", fov)), actor="demo")
         return self.get_encounter(enc["id"])
+
+
+    # ------------------------------------------------------------ agents (LangGraph)
+    def _maybe_start_agents(self, enc_id: str) -> None:
+        """Start a new agent run once every image of an unsigned encounter is finished."""
+        if not self.agents:
+            return
+        with self.lock, self.Session() as s:
+            e = s.get(EncounterRow, enc_id)
+            if e is None or e.status == "signed":
+                return
+            imgs = self._images(s, enc_id)
+            if not imgs or any(i.status in ("queued", "running") for i in imgs) or not any(i.status == "done" for i in imgs):
+                return
+        self.agents.submit("start", enc_id)
+
+    def agent_tools(self):
+        svc = self
+
+        class _T:
+            pipeline = svc.pipeline
+            pipeline_lock = svc.pipeline_lock
+
+            @staticmethod
+            def get_encounter(enc_id: str) -> dict:
+                return svc.get_encounter(enc_id)
+
+            @staticmethod
+            def image_bytes(image_id: str) -> bytes:
+                with svc.Session() as s:
+                    r = svc._get_img(s, image_id)
+                    return svc.storage.abs(r.path_original).read_bytes()
+
+            @staticmethod
+            def policy() -> dict:
+                return svc.policy()
+
+            @staticmethod
+            def set_overrides(enc_id: str, overrides: dict) -> dict:
+                with svc.lock, svc.Session() as s:
+                    e = svc._get_enc(s, enc_id)
+                    run = s.get(AgentRunRow, enc_id)
+                    if run is None:
+                        return svc.encounter_dict(s, e)
+                    run.overrides_json = canonical_json(overrides)
+                    s.flush()
+                    ai = svc.recompute(s, e)
+                    audit.append(s, "agent_override", encounter_id=enc_id, actor="agent:second_opinion",
+                                 payload={"overrides": overrides, "encounter_outcome": ai["outcome"] if ai else None})
+                    s.commit()
+                    return svc.encounter_dict(s, e)
+
+            @staticmethod
+            def audit(enc_id: str, event: str, payload: dict) -> None:
+                with svc.lock, svc.Session() as s:
+                    audit.append(s, event, encounter_id=enc_id, actor="agent", payload=payload)
+                    s.commit()
+
+            @staticmethod
+            def facility(enc_id: str):
+                with svc.Session() as s:
+                    r = svc._referral(s, enc_id)
+                    return r.facility if r else None
+
+        return _T
+
+    def agent_new_run(self, enc_id: str) -> tuple[int, str]:
+        with self.lock, self.Session() as s:
+            run = s.get(AgentRunRow, enc_id)
+            n = (run.run_no + 1) if run else 1
+            tid = f"{enc_id}:{n}"
+            if run is None:
+                run = AgentRunRow(encounter_id=enc_id, thread_id=tid, run_no=n, status="queued", updated_at=iso())
+                s.add(run)
+            else:
+                run.thread_id, run.run_no, run.status, run.error, run.state_json = tid, n, "queued", None, None
+                had = run.overrides_json not in (None, "", "{}")
+                run.overrides_json = "{}"
+                if had:   # inputs changed: drop the previous run's upgrades until the new run decides again
+                    s.flush()
+                    self.recompute(s, self._get_enc(s, enc_id))
+            run.updated_at = iso()
+            s.commit()
+            return n, tid
+
+    def agent_thread(self, enc_id: str) -> str | None:
+        with self.Session() as s:
+            run = s.get(AgentRunRow, enc_id)
+            return run.thread_id if run else None
+
+    def agent_save(self, enc_id: str, status: str, state: dict | None = None, error: str | None = None) -> None:
+        with self.lock, self.Session() as s:
+            run = s.get(AgentRunRow, enc_id)
+            if run is None:
+                return
+            run.status = status
+            if state is not None:
+                run.state_json = json.dumps(state, default=str)
+            if error is not None:
+                run.error = error
+            run.updated_at = iso()
+            s.commit()
+
+    def agent_state(self, enc_id: str) -> dict:
+        from server.agents import llm as L
+
+        with self.Session() as s:
+            self._get_enc(s, enc_id)
+            run = s.get(AgentRunRow, enc_id)
+            base = {"available": bool(self.agents and self.agents.ready), "llm": L.status()}
+            if run is None:
+                return {**base, "status": "not_started"}
+            st = json.loads(run.state_json) if run.state_json else {}
+            return {**base, "status": run.status, "run_no": run.run_no, "thread_id": run.thread_id, "error": run.error,
+                    "updated_at": run.updated_at, "overrides": json.loads(run.overrides_json or "{}"),
+                    "trace": st.get("trace", []), "second_opinion": st.get("second_opinion", {}),
+                    "coaching": st.get("coaching", {}), "brief": st.get("brief"), "letter": st.get("letter"),
+                    "next": st.get("next", [])}
+
+    def agent_rerun(self, enc_id: str) -> dict:
+        with self.Session() as s:
+            e = self._get_enc(s, enc_id)
+            if e.status == "signed":
+                raise ApiError(409, "encounter is signed; the pre-review agents cannot be re-run")
+        if not self.agents or not self.agents.ready:
+            raise ApiError(503, "agents unavailable")
+        self.agents.submit("start", enc_id)
+        return {"queued": True}
+
+    # ------------------------------------------------------------ read-only tools for 'Ask Retinitry'
+    def ask_tools(self) -> dict:
+        svc = self
+
+        def screening_summary(days: int = 7) -> dict:
+            since = utcnow() - timedelta(days=int(days))
+            with svc.Session() as s:
+                encs = [e for e in s.execute(select(EncounterRow)).scalars() if parse_iso(e.created_at) >= since]
+                ai = {}
+                for e in encs:
+                    o = json.loads(e.ai_outcome_json)["outcome"] if e.ai_outcome_json else "PENDING"
+                    ai[o] = ai.get(o, 0) + 1
+                fin = {}
+                for e in encs:
+                    if e.final_outcome:
+                        fin[e.final_outcome] = fin.get(e.final_outcome, 0) + 1
+                return {"days": int(days), "screenings": len(encs), "ai_outcomes": ai, "final_outcomes": fin,
+                        "awaiting_review": sum(1 for e in encs if e.status == "awaiting_review"),
+                        "signed": sum(1 for e in encs if e.status == "signed")}
+
+        def referral_pipeline() -> dict:
+            r = svc.referrals(None)
+            counts = {}
+            for it in r["items"]:
+                counts[it["status"]] = counts.get(it["status"], 0) + 1
+            return {"by_status": counts, **r["stats"]}
+
+        def overdue_referrals() -> dict:
+            now = utcnow()
+            out = []
+            with svc.Session() as s:
+                for ref in s.execute(select(ReferralRow)).scalars():
+                    if svc.is_overdue(ref, now):
+                        e = s.get(EncounterRow, ref.encounter_id)
+                        out.append({"patient_code": e.patient_code if e else None, "status": ref.status,
+                                    "priority": ref.priority, "days_since_issue": (now - parse_iso(ref.issued_at)).days})
+            return {"overdue": len(out), "items": out[:20]}
+
+        def override_summary(days: int = 30) -> dict:
+            since = utcnow() - timedelta(days=int(days))
+            with svc.Session() as s:
+                revs = [r for r in s.execute(select(ReviewRow)).scalars() if parse_iso(r.at) >= since]
+                changes, reasons = {}, []
+                for r in revs:
+                    if r.decision == "override":
+                        e = s.get(EncounterRow, r.encounter_id)
+                        a = json.loads(e.ai_outcome_json)["outcome"] if e and e.ai_outcome_json else "?"
+                        k = f"{a}->{r.final_outcome}"
+                        changes[k] = changes.get(k, 0) + 1
+                        reasons.append(r.reason)
+                return {"days": int(days), "signed": len(revs), "approved": sum(1 for r in revs if r.decision == "approve"),
+                        "overridden": sum(1 for r in revs if r.decision == "override"), "changes": changes, "reasons": reasons[:10]}
+
+        def model_performance(dataset: str = "idrid") -> dict:
+            f = svc.settings.models_dir / "metrics.json"
+            if not f.exists():
+                return {"error": "evaluation not run"}
+            m = json.loads(f.read_text(encoding="utf-8"))
+            d = dataset if dataset in m.get("models", {}).get("ensemble", {}) else "idrid"
+            e, t = m["models"]["ensemble"][d], m.get("triage", {}).get(d, {})
+            return {"dataset": d, "source": m.get("datasets", {}).get(d, {}).get("source"), "n": e.get("n"),
+                    "auroc": round(e["auroc"], 3), "sensitivity": round(e["sens"], 2), "specificity": round(e["spec"], 2),
+                    "referable_cleared_as_routine": t.get("referable_routed_routine"), "referable_total": t.get("referable_total"),
+                    "human_review_rate": round(t["human_review_rate"], 2) if "human_review_rate" in t else None}
+
+        def find_case(patient_code: str) -> dict:
+            with svc.Session() as s:
+                e = s.execute(select(EncounterRow).where(EncounterRow.patient_code == patient_code)).scalars().first()
+                if e is None:
+                    return {"found": False}
+                ai = json.loads(e.ai_outcome_json) if e.ai_outcome_json else {}
+                ref = svc._referral(s, e.id)
+                return {"found": True, "patient_code": e.patient_code, "status": e.status, "ai_outcome": ai.get("outcome"),
+                        "ai_urgency": ai.get("urgency"), "final_outcome": e.final_outcome,
+                        "referral_status": ref.status if ref else None, "created_at": e.created_at}
+
+        return {"screening_summary": screening_summary, "referral_pipeline": referral_pipeline,
+                "overdue_referrals": overdue_referrals, "override_summary": override_summary,
+                "model_performance": model_performance, "find_case": find_case}

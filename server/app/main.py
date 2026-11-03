@@ -347,6 +347,54 @@ def create_app(pipeline: Any = None, data_dir: Optional[Path] = None, models_dir
                  "thumb": f"/api/demo-cases/{c.get('name')}/thumb", "eye": c.get("eye"), "view": c.get("view")}
                 for c in ready().demo_cases()]
 
+    # ------------------------------------------------------------ agents (LangGraph)
+    _ask = {"graph": None}
+
+    @api.get("/agents/status")
+    def agents_status():
+        from server.agents import llm as L
+
+        svc = ready()
+        return {"encounter_graph": bool(svc.agents and svc.agents.ready),
+                "error": svc.agents.last_error if svc.agents else "disabled (RETINITRY_AGENTS=0)",
+                "llm": L.status(refresh=True)}
+
+    @api.get("/agents/graph")
+    def agents_graph():
+        svc = ready()
+        return {"mermaid": svc.agents.graph_mermaid() if svc.agents else ""}
+
+    @api.get("/encounters/{enc_id}/agent")
+    def get_agent(enc_id: str):
+        return ready().agent_state(enc_id)
+
+    @api.post("/encounters/{enc_id}/agent/rerun")
+    def rerun_agent(enc_id: str):
+        return ready().agent_rerun(enc_id)
+
+    @api.post("/ask")
+    async def ask(request: Request):
+        from server.agents import ask_graph as AG
+        from server.agents import llm as L
+
+        body = await request.json()
+        q = str(body.get("question") or "").strip()[:500]
+        if not q:
+            raise StarletteHTTPException(status_code=400, detail="question is required")
+        if not L.available():
+            raise StarletteHTTPException(status_code=503, detail="The local language model is not running. Start Ollama "
+                                         f"and pull {L.MODEL} (see docs/handoff/04_RUNBOOK.md).")
+        if _ask["graph"] is None:
+            _ask["graph"] = AG.build(ready().ask_tools())
+        res = await run_in_threadpool(AG.ask, _ask["graph"], q)
+        with ready().lock, ready().Session() as s:
+            from . import audit as _audit
+
+            _audit.append(s, "agent_ask", actor="programme", payload={"question": q, "grounded": res["grounded"],
+                                                                      "tools": [t["tool"] for t in res["tool_calls"]]})
+            s.commit()
+        return res
+
     # ------------------------------------------------------------ failure gallery (real cases where the AI was wrong)
     @api.get("/failures")
     def failures():

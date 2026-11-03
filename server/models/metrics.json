@@ -5202,6 +5202,7 @@
     "max_abs_diff_p_referable_ensemble": 0.34228456020355225,
     "decision_flips_at_t_refer": 43,
     "n": 516,
-    "accepted": false
+    "accepted": false,
+    "note": "Measured before the IDRiD file fix (03 Nov). Rejected: 43 referral decisions changed; not re-run because the verdict cannot flip to accepted."
   }
 }

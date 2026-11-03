@@ -63,6 +63,8 @@ Later runs start in about 10 seconds. To stop, close the window or press Ctrl+C.
 
 ## Measured results (from `server/models/metrics.json`)
 
+> **Warning:** the IDRiD row predates a data fix (IDRiD test photos had overwritten training photos) and is invalid until `python -m ml.run_v3` finishes. See [docs/handoff/11_FINAL_STATE.md](docs/handoff/11_FINAL_STATE.md).
+
 | Test set | n | AUROC | Sensitivity | Specificity | Referable eyes cleared as ROUTINE |
 |---|---|---|---|---|---|
 | IDRiD (fully external: never trained on or fitted) | 516 | 0.917 | 0.84 | 0.80 | 3 / 286 |
