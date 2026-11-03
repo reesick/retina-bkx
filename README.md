@@ -1,61 +1,109 @@
-# Retinitry (retina-bkx)
+# Retinitry
 
-Explainable, uncertainty-aware screening triage for diabetic retinopathy that runs offline on one laptop.
-Vishwakarandak '26 · Software Track · HEA-S08. **Research prototype. Triage aid, not a diagnosis.**
+Offline, explainable, uncertainty-aware screening triage for diabetic retinopathy. It runs on one laptop with no internet and no GPU.
+Vishwakarandak '26 · Software Track · HEA-S08. **Research prototype. A triage aid, not a diagnosis. Not clinically validated.**
 
-A health worker records visual acuity and uploads retinal photos for both eyes. Retinitry checks each photo's quality
-and says why it fails. Two graders (EfficientNet-B3 and DINOv2) estimate the DR grade with calibrated confidence. The
-system measures its own doubt, traces lesion candidates and finds the optic disc and fovea. A deterministic policy with
-a readable rule trace then routes the case to **Routine**, **Refer**, **Needs a human** or **Retake**. A clinician
-signs off or overrides with a hold-to-sign gesture. Referrals are tracked until closed, and every action goes into a
-hash-chained audit log. The evidence is drawn in 2D and projected onto a procedural 3D eye, where the retina the
-camera never saw is shown grey.
+A health worker records visual acuity and uploads retinal photos of both eyes. Retinitry then:
 
-- Plan and design: [`docs/`](docs/README.md), starting with [product](docs/01_PRODUCT.md), [architecture](docs/02_ARCHITECTURE.md),
-  [ML](docs/03_ML.md), [API](docs/04_API.md), [UI/UX](docs/05_UI_UX.md) and [build](docs/06_BUILD.md).
-- Measured results: `server/models/metrics.json` (shown on the Evidence page). No other numbers are claimed.
+- checks each photo's quality and explains any rejection;
+- grades DR with two models (EfficientNet-B3 + DINOv2 ViT) and calibrates their confidence;
+- measures its own doubt;
+- traces lesion candidates and finds the optic disc and fovea;
+- sends the case through a deterministic, readable rule set to **ROUTINE**, **REFER**, **NEEDS A HUMAN** or **RETAKE**.
 
-## Run
+A clinician then signs off or overrides. Referrals are tracked until closed, every action goes into a tamper-evident audit log,
+and the evidence is drawn in 2D and on a 3D eye that shows which part of the retina was never photographed.
+
+---
+
+## Run it (Windows)
+
+**Needs:** Windows 10/11, **Python 3.11** (`winget install Python.Python.3.11`), Git, about 3 GB free disk. No GPU, no Node.js.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\setup_env.ps1   # once: Python env on D:
-.venv\Scripts\python.exe -m ml.data.fetch                        # once: datasets (resumable)
-.venv\Scripts\python.exe -m ml.run_all                           # once: train, export, evaluate (resumable)
-powershell -ExecutionPolicy Bypass -File scripts\start.ps1       # builds the web app if needed, opens http://127.0.0.1:8765
+git clone https://github.com/reesick/retina-bkx.git retinitry
+cd retinitry
+.\START_RETINITRY.bat
 ```
 
-UI without the server: `cd web; npm run dev:mock`. End-to-end check against a running server: `.venv\Scripts\python.exe scripts\e2e.py`.
+You can also double-click `START_RETINITRY.bat` in Explorer.
 
-## Measured results (v2, from `server/models/metrics.json`)
+**The first run takes 3–6 minutes.** It:
+1. creates `.venv` and installs the runtime packages from `requirements-runtime.txt`;
+2. rebuilds the five model files from `server/models/parts/`, checking every SHA-256;
+3. starts the server and opens **http://127.0.0.1:8765**.
 
-Ensemble of EfficientNet-B3 + DINOv2 ViT-B/14, referable DR = grade ≥ 2, operating point fitted on validation.
+Later runs start in about 10 seconds. To stop, close the window or press Ctrl+C.
 
-| Test set | n | AUROC | Sensitivity | Specificity | Referable cases auto-cleared as ROUTINE |
+**macOS / Linux:** run `bash scripts/start.sh`. It does the same steps, but has not been tested on those systems.
+
+### Try it
+1. On **Today**, scroll to **Try a demo case** and click one. Six two-eye cases are bundled, one for each outcome plus the vision safeguard.
+2. Or click **New screening**, enter vision for both eyes, and drop photos into the eye circles. A right/left pair is in
+   `server/demo/` (`refer-soon-od.jpg` → right eye, `refer-soon-os.jpg` → left eye).
+3. Open the case. You get the photo layers (attention, lesions, landmarks), the 3D eye, the rule trace, and sign-off by holding the circle.
+4. **Evidence** shows the measured results. **Eye Lab** has anatomy, light-ray optics, DR stages and retinal coverage.
+
+---
+
+## Where things are
+
+| What | Where |
+|---|---|
+| **Trained models** (5 ONNX files, 527 MB) | Shipped in git as 45 MB parts: `server/models/parts/*.part*` + `parts.json` (SHA-256 of every part and file). Rebuilt to `server/models/*.onnx` by `python scripts/models.py assemble`, which the start script runs |
+| Fitted thresholds, calibration, OOD stats, metrics | `server/models/policy.json`, `quality_rules.json`, `ood.npz`, `metrics.json`, `manifest.json` |
+| Previous (v1, APTOS-only) results for comparison | `server/models/v1_aptos_only/` |
+| Demo cases (12 CC-BY images) | `server/demo/` + `ATTRIBUTION.md` |
+| Prebuilt web app | `web/dist/` (committed; rebuild with `cd web; npm ci; npm run build` after UI changes) |
+| Your cases, reviews, audit log | `server/storage/` (created on first run, never committed; delete it to reset) |
+| Logs (server, front-end errors) | `logs/` (front-end errors in `logs/client.log`) |
+| **Full handoff** (status, architecture, results, runbook, risks, next steps) | [`docs/handoff/00_START_HERE.md`](docs/handoff/00_START_HERE.md) |
+
+## Measured results (from `server/models/metrics.json`)
+
+| Test set | n | AUROC | Sensitivity | Specificity | Referable eyes cleared as ROUTINE |
 |---|---|---|---|---|---|
-| IDRiD (fully external, never trained on or fitted) | 516 | 0.917 | 0.84 | 0.80 | 3 / 286 |
+| IDRiD (fully external: never trained on or fitted) | 516 | 0.917 | 0.84 | 0.80 | 3 / 286 |
 | DDR test (held out; DDR train used in training) | 3,759 | 0.975 | 0.79 | 0.98 | 66 / 1,690 |
 | DeepDRiD val (held-out patients) | 400 | 0.975 | 0.96 | 0.88 | 1 / 180 |
 | APTOS test (held out) | 550 | 0.985 | 0.92 | 0.94 | 0 / 223 |
 
-The v1 graders were trained on APTOS alone. They let 641 / 1,690 referable DDR cases through as ROUTINE, because the APTOS-fitted threshold did not
-transfer across cameras. v2 trains on three sources. The v1 numbers are kept in `server/models/v1_aptos_only/`, and `python -m ml.eval.compare` prints both side by side.
-The price is more human review: on IDRiD, 70% of cases go to a clinician.
-
-Other measurements:
-- **Quality gate:** rejects 10% of good DeepDRiD photos and flags 80% of poor ones. None of the 346 ungradable DDR images was cleared as ROUTINE.
-- **Lesion Dice on IDRiD test:** EX 0.77, HE 0.65, SE 0.67, MA 0.43.
+Other results:
+- **Quality gate:** rejects 10% of good photos; no ungradable DDR photo was ever cleared as ROUTINE.
+- **Lesion Dice (IDRiD test):** EX 0.77, HE 0.65, SE 0.67, MA 0.43.
 - **Landmarks:** optic disc within 1 disc diameter on 100% of IDRiD test images, fovea on 98%.
-- **Left/right eye:** read from disc position, 98% correct on DeepDRiD.
-- **Explanation tests:** pointing game 0.67 (CNN) and 0.81 (ViT) vs a 0.23 random baseline; the deletion test and the weight-randomisation check both pass.
-- **Speed and determinism:** about 3–4.5 s per image on a laptop CPU, and replaying the same image gives an identical result hash.
+- **Speed and determinism:** about 4.5 s per image on a laptop CPU; the same image always gives the same result hash.
 
-Research prototype on public datasets. These are not clinical validation results.
+Known weaknesses are listed with numbers in [`docs/handoff/01_STATUS.md`](docs/handoff/01_STATUS.md). The main ones:
+- On IDRiD the system is cautious: 70% of cases go to human review, and specificity is 0.80.
+- Microaneurysm detection is weak.
+- The 3D views were only tested in software rendering.
 
-## Layout
+## For developers
 
-`core/` shared deterministic preprocessing, quality rules and triage policy · `ml/` data harness, training,
-evaluation, ONNX export · `server/` FastAPI app, inference pipeline, models, demo cases · `web/` React + three.js app ·
-`docs/` the plan.
+| Task | Command |
+|---|---|
+| Full dev + training environment (CUDA PyTorch) | `powershell -ExecutionPolicy Bypass -File scripts\setup_env.ps1` |
+| Retrain everything (resumable, about 4–5 h on an RTX 4050) | `powershell -ExecutionPolicy Bypass -File scripts\train.ps1` |
+| Re-pack models after retraining, before committing | `python scripts\models.py pack` |
+| Backend tests | `.venv\Scripts\python.exe -m pytest server/tests -q` |
+| Front-end tests | `cd web; npm ci; npm run typecheck; npm run test` |
+| End-to-end and browser QA (server running) | `.venv\Scripts\python.exe scripts\e2e.py` and `cd web; node qa/ui_qa.mjs` |
+| UI without the server (mock data) | `cd web; npm run dev:mock` |
 
-Data licences: IDRiD and DDR CC-BY 4.0, DeepDRiD CC-BY-SA 4.0, APTOS 2019 under Kaggle competition rules (used for
-training only, never redistributed). DINOv2 weights Apache-2.0. Inter font OFL.
+Layout:
+- `core/`: shared deterministic preprocessing, quality rules and triage policy.
+- `ml/`: data harness, training, evaluation, ONNX export.
+- `server/`: FastAPI app, inference pipeline, models, demo cases.
+- `web/`: React + three.js app.
+- `docs/`: the plan and the handoff.
+
+## Data and licences
+
+- **APTOS 2019:** Kaggle competition rules. Used for training only and never redistributed. A commercial use would need retraining without it.
+- **IDRiD and DDR:** CC-BY 4.0.
+- **DeepDRiD:** CC-BY-SA 4.0.
+- **DINOv2 weights:** Apache-2.0.
+- **Inter font:** OFL.
+
+Demo images come from IDRiD and DDR, with attribution in `server/demo/ATTRIBUTION.md`.
