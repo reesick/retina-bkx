@@ -53,7 +53,7 @@ export default function EyeLab() {
   return (
     <div className="fixed inset-0 top-[84px] overflow-hidden">
       {routeActive && (
-        <Stage className="absolute inset-0" camera={{ position: ANATOMY_CAM.position, fov: ANATOMY_CAM.fov }} bloom={mode === "optics" ? 0.9 : mode === "anatomy" ? 0.55 : 0.3} effects>
+        <Stage className="absolute inset-0" camera={{ position: ANATOMY_CAM.position, fov: ANATOMY_CAM.fov }} bloom={0.9} effects={mode === "optics"}>
           <Suspense fallback={null}>
             <CompileGate key={mode}>
             {mode === "optics" ? (
