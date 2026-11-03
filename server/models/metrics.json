@@ -5055,10 +5055,10 @@
     "idrid_test": {
       "n": 27,
       "dice": {
-        "MA": 0.4288410384438203,
-        "HE": 0.6461346031859483,
-        "EX": 0.7662861976624219,
-        "SE": 0.6688519125531265
+        "MA": 0.42878582997756215,
+        "HE": 0.6461457642806219,
+        "EX": 0.766278429186592,
+        "SE": 0.6688148148148149
       },
       "images_with_lesion": {
         "MA": 27,
@@ -5070,10 +5070,10 @@
     "ddr_test": {
       "n": 225,
       "dice": {
-        "MA": 0.24141333682070548,
-        "HE": 0.4023325173244256,
-        "EX": 0.575196249543117,
-        "SE": 0.432161871250187
+        "MA": 0.2413528694980236,
+        "HE": 0.4023238064499915,
+        "EX": 0.5751955660690458,
+        "SE": 0.43215221766894973
       },
       "images_with_lesion": {
         "MA": 124,
@@ -5093,8 +5093,8 @@
   "landmarks": {
     "idrid_test": {
       "n": 206,
-      "od_err_dd_median": 0.04900031609339986,
-      "fovea_err_dd_median": 0.06617110285924696,
+      "od_err_dd_median": 0.048805139089677346,
+      "fovea_err_dd_median": 0.06617100394995609,
       "od_within_1dd": 1.0,
       "fovea_within_1dd": 0.9805825242718447,
       "od_within_0_5dd": 1.0,
@@ -5106,29 +5106,44 @@
     "pointing_game": {
       "dataset": "IDRiD segmentation test (n=27), masks dilated 15 px",
       "cnn_cam": 0.6666666666666666,
-      "vit_attention": 0.8518518518518519,
+      "vit_attention": 0.8148148148148148,
       "random_baseline": 0.23240654138041014
     },
     "deletion": {
       "dataset": "APTOS test referable images (n=80)",
       "area": "10% of 16x16 CAM cells",
-      "mean_drop_top_cam": 0.09125586731242948,
-      "mean_drop_random": -0.01597892548888922,
-      "share_top_drop_larger": 0.8625
+      "mean_drop_top_cam": 0.15394910432514736,
+      "mean_drop_random": 0.008990801032632589,
+      "share_top_drop_larger": 0.9375
     },
     "randomisation": {
       "dataset": "APTOS test referable images (n=40)",
       "randomised": "classifier, conv_head, last block",
-      "spearman_cam_trained_vs_random_mean": -0.0044520216596033975,
+      "spearman_cam_trained_vs_random_mean": 0.027145577813513278,
       "interpretation": "low correlation means the map depends on learned weights (passes sanity check)"
     }
   },
   "latency_ms": {
-    "p50": 2349.621400000615,
-    "p95": 2497.044300000198,
+    "p50": 4470.353700002306,
+    "p95": 4566.853699994681,
     "n": 11,
     "cpu": "AMD64 Family 25 Model 68 Stepping 1, AuthenticAMD",
     "threads": 4,
     "runtime": "ONNX Runtime CPU"
+  },
+  "laterality": {
+    "deepdrid": {
+      "n": 1600,
+      "decided": 1163,
+      "accuracy_if_disc_right_is_OD": 0.9828030954428203,
+      "rule": "OD",
+      "note": "eye label taken from DeepDRiD file names (_l/_r); measured, not assumed"
+    }
+  },
+  "determinism": {
+    "verified": true,
+    "hash_run1": "dc1c6727dcaa9b54",
+    "hash_run2": "dc1c6727dcaa9b54",
+    "method": "same image analysed twice by the CPU pipeline; result JSON hashed"
   }
 }
