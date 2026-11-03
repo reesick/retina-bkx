@@ -24,7 +24,32 @@ powershell -ExecutionPolicy Bypass -File scripts\setup_env.ps1   # once: Python 
 powershell -ExecutionPolicy Bypass -File scripts\start.ps1       # builds the web app if needed, opens http://127.0.0.1:8765
 ```
 
-UI without the server: `cd web; npm run dev:mock`.
+UI without the server: `cd web; npm run dev:mock`. End-to-end check against a running server: `.venv\Scripts\python.exe scripts\e2e.py`.
+
+## Measured results (v2, from `server/models/metrics.json`)
+
+Ensemble of EfficientNet-B3 + DINOv2 ViT-B/14, referable DR = grade ≥ 2, operating point fitted on validation.
+
+| Test set | n | AUROC | Sensitivity | Specificity | Referable cases auto-cleared as ROUTINE |
+|---|---|---|---|---|---|
+| IDRiD (fully external, never trained on or fitted) | 516 | 0.917 | 0.84 | 0.80 | 3 / 286 |
+| DDR test (held out; DDR train used in training) | 3,759 | 0.975 | 0.79 | 0.98 | 66 / 1,690 |
+| DeepDRiD val (held-out patients) | 400 | 0.975 | 0.96 | 0.88 | 1 / 180 |
+| APTOS test (held out) | 550 | 0.985 | 0.92 | 0.94 | 0 / 223 |
+
+The v1 graders were trained on APTOS alone. They let 641 / 1,690 referable DDR cases through as ROUTINE, because the APTOS-fitted threshold did not
+transfer across cameras. v2 trains on three sources. The v1 numbers are kept in `server/models/v1_aptos_only/`, and `python -m ml.eval.compare` prints both side by side.
+The price is more human review: on IDRiD, 70% of cases go to a clinician.
+
+Other measurements:
+- **Quality gate:** rejects 10% of good DeepDRiD photos and flags 80% of poor ones. None of the 346 ungradable DDR images was cleared as ROUTINE.
+- **Lesion Dice on IDRiD test:** EX 0.77, HE 0.65, SE 0.67, MA 0.43.
+- **Landmarks:** optic disc within 1 disc diameter on 100% of IDRiD test images, fovea on 98%.
+- **Left/right eye:** read from disc position, 98% correct on DeepDRiD.
+- **Explanation tests:** pointing game 0.67 (CNN) and 0.81 (ViT) vs a 0.23 random baseline; the deletion test and the weight-randomisation check both pass.
+- **Speed and determinism:** about 3–4.5 s per image on a laptop CPU, and replaying the same image gives an identical result hash.
+
+Research prototype on public datasets. These are not clinical validation results.
 
 ## Layout
 

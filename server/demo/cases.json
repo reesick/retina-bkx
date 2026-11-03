@@ -1,57 +1,206 @@
 [
   {
     "name": "routine",
-    "title": "Clear photo, no referral trigger",
-    "description": "IDRiD IDRiD_044. Dataset label: grade 0 (no DR).",
+    "title": "Both eyes clear, normal vision",
+    "description": "Routine pathway: adequate photos of both eyes, no referral trigger, vision 6/6 and 6/9.",
     "source": "IDRiD",
     "license": "CC-BY-4.0",
-    "file": "routine.jpg",
-    "eye": "OS",
+    "file": "routine-od.jpg",
+    "eye": "OD",
     "view": "macula",
-    "fov_deg": 50
+    "fov_deg": 50,
+    "images": [
+      {
+        "file": "routine-od.jpg",
+        "eye": "OD",
+        "view": "macula",
+        "fov_deg": 50
+      },
+      {
+        "file": "routine-os.jpg",
+        "eye": "OS",
+        "view": "macula",
+        "fov_deg": 50
+      }
+    ],
+    "va": {
+      "OD": "6/6",
+      "OS": "6/9",
+      "method": "Snellen"
+    },
+    "expected": {
+      "outcome": "ROUTINE",
+      "urgency": null
+    }
   },
   {
     "name": "refer-immediate",
-    "title": "Severe signs, immediate referral",
-    "description": "IDRiD IDRiD_004. Dataset label: grade 4 (proliferative DR).",
+    "title": "Severe signs in one eye",
+    "description": "Referral (immediate). Dataset grade 4 (proliferative DR) in OD; other eye clear.",
     "source": "IDRiD",
     "license": "CC-BY-4.0",
-    "file": "refer-immediate.jpg",
+    "file": "refer-immediate-od.jpg",
     "eye": "OD",
     "view": "macula",
-    "fov_deg": 50
+    "fov_deg": 50,
+    "images": [
+      {
+        "file": "refer-immediate-od.jpg",
+        "eye": "OD",
+        "view": "macula",
+        "fov_deg": 50
+      },
+      {
+        "file": "refer-immediate-os.jpg",
+        "eye": "OS",
+        "view": "macula",
+        "fov_deg": 50
+      }
+    ],
+    "va": {
+      "OD": "6/6",
+      "OS": "6/9",
+      "method": "Snellen"
+    },
+    "expected": {
+      "outcome": "REFER",
+      "urgency": "immediate"
+    }
   },
   {
     "name": "refer-soon",
-    "title": "Moderate signs, referral",
-    "description": "IDRiD IDRiD_015. Dataset label: grade 2 (moderate NPDR).",
+    "title": "Moderate signs in one eye",
+    "description": "Referral (soon). Dataset grade 2 (moderate NPDR) in OD; other eye clear.",
     "source": "IDRiD",
     "license": "CC-BY-4.0",
-    "file": "refer-soon.jpg",
+    "file": "refer-soon-od.jpg",
     "eye": "OD",
     "view": "macula",
-    "fov_deg": 50
+    "fov_deg": 50,
+    "images": [
+      {
+        "file": "refer-soon-od.jpg",
+        "eye": "OD",
+        "view": "macula",
+        "fov_deg": 50
+      },
+      {
+        "file": "refer-soon-os.jpg",
+        "eye": "OS",
+        "view": "macula",
+        "fov_deg": 50
+      }
+    ],
+    "va": {
+      "OD": "6/6",
+      "OS": "6/9",
+      "method": "Snellen"
+    },
+    "expected": {
+      "outcome": "REFER",
+      "urgency": "soon"
+    }
   },
   {
     "name": "human-review",
     "title": "The AI is unsure",
-    "description": "IDRiD IDRiD_001. Dataset label: grade 4 (proliferative DR).",
+    "description": "The AI abstains on OS (HIGH_ENTROPY); a clinician decides.",
     "source": "IDRiD",
     "license": "CC-BY-4.0",
-    "file": "human-review.jpg",
+    "file": "human-review-os.jpg",
     "eye": "OS",
     "view": "macula",
-    "fov_deg": 50
+    "fov_deg": 50,
+    "images": [
+      {
+        "file": "human-review-os.jpg",
+        "eye": "OS",
+        "view": "macula",
+        "fov_deg": 50
+      },
+      {
+        "file": "human-review-od.jpg",
+        "eye": "OD",
+        "view": "macula",
+        "fov_deg": 50
+      }
+    ],
+    "va": {
+      "OD": "6/6",
+      "OS": "6/9",
+      "method": "Snellen"
+    },
+    "expected": {
+      "outcome": "HUMAN_REVIEW",
+      "urgency": null
+    }
   },
   {
     "name": "retake",
-    "title": "Unusable photo",
-    "description": "IDRiD IDRiD_044 (blurred + darkened copy). Dataset label: grade 0 (no DR).",
+    "title": "Unusable photo of one eye",
+    "description": "One photo is too blurred and dark to reassure; retake it. The other eye is clear.",
     "source": "IDRiD",
     "license": "CC-BY-4.0",
-    "file": "retake.jpg",
-    "eye": "OS",
+    "file": "retake-od.jpg",
+    "eye": "OD",
     "view": "macula",
-    "fov_deg": 50
+    "fov_deg": 50,
+    "images": [
+      {
+        "file": "retake-od.jpg",
+        "eye": "OD",
+        "view": "macula",
+        "fov_deg": 50
+      },
+      {
+        "file": "retake-os.jpg",
+        "eye": "OS",
+        "view": "macula",
+        "fov_deg": 50
+      }
+    ],
+    "va": {
+      "OD": "6/6",
+      "OS": "6/9",
+      "method": "Snellen"
+    },
+    "expected": {
+      "outcome": "RETAKE",
+      "urgency": null
+    }
+  },
+  {
+    "name": "vision-safeguard",
+    "title": "Clear photos, reduced vision",
+    "description": "Both photos look routine, but right-eye vision is 6/18 (worse than 6/12): refer regardless of the model.",
+    "source": "IDRiD",
+    "license": "CC-BY-4.0",
+    "file": "vision-safeguard-od.jpg",
+    "eye": "OD",
+    "view": "macula",
+    "fov_deg": 50,
+    "images": [
+      {
+        "file": "vision-safeguard-od.jpg",
+        "eye": "OD",
+        "view": "macula",
+        "fov_deg": 50
+      },
+      {
+        "file": "vision-safeguard-os.jpg",
+        "eye": "OS",
+        "view": "macula",
+        "fov_deg": 50
+      }
+    ],
+    "va": {
+      "OD": "6/18",
+      "OS": "6/9",
+      "method": "Snellen"
+    },
+    "expected": {
+      "outcome": "REFER",
+      "urgency": "soon"
+    }
   }
 ]

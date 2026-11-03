@@ -1,4 +1,4 @@
-﻿// MOCK DATA for VITE_MOCK=1. Shapes match docs/04_API.md exactly. Numbers here are invented and only ever shown
+// MOCK DATA for VITE_MOCK=1. Shapes match docs/04_API.md exactly. Numbers here are invented and only ever shown
 // while the "MOCK DATA" pill is visible.
 import type {
   DemoCase, Eye, Grade, Grading, Landmarks, Lesion, LesionType, Lesions, MacularRisk, MetricsAvailable, ModelGrade,

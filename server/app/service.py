@@ -728,5 +728,15 @@ class Service:
         view = c.get("view", "macula")
         fov = float(c.get("fov_deg", 45))
         enc = self.create_encounter({"patient_code": f"DEMO-{name}", "notes": c.get("title", "")}, actor="demo")
-        self.add_image(enc["id"], p.read_bytes(), p.name, None, eye, view, fov, actor="demo")
+        if c.get("va"):
+            self.update_va(enc["id"], {"OD": {"value": c["va"].get("OD")}, "OS": {"value": c["va"].get("OS")},
+                                       "method": c["va"].get("method", "Snellen"), "measured_at": None,
+                                       "operator": "demo"})
+        imgs = c.get("images") or [{"file": c.get("file"), "eye": eye, "view": view, "fov_deg": fov}]
+        for im in imgs:
+            ip = (self.settings.demo_dir / im["file"]).resolve()
+            if self.settings.demo_dir.resolve() not in ip.parents or not ip.exists():
+                raise ApiError(404, f"demo image missing: {im['file']}")
+            self.add_image(enc["id"], ip.read_bytes(), ip.name, None, im.get("eye", eye), im.get("view", view),
+                           float(im.get("fov_deg", fov)), actor="demo")
         return self.get_encounter(enc["id"])
