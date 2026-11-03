@@ -7,6 +7,7 @@ final decision to a clinician.
 
 | File | What it answers |
 |---|---|
+| **[handoff/00_START_HERE.md](handoff/00_START_HERE.md)** | **Current handoff: status, architecture, results, runbook, risks, next steps. Start here.** |
 | [01_PRODUCT.md](01_PRODUCT.md) | What we build, for whom, which features are in, wording rules |
 | [02_ARCHITECTURE.md](02_ARCHITECTURE.md) | System design, pipeline, triage policy, data model, determinism, offline |
 | [03_ML.md](03_ML.md) | Datasets, splits, models, training recipes, calibration, evaluation, ONNX export |
