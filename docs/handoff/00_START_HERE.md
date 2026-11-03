@@ -50,7 +50,7 @@ folder disagree, **this folder is current**.
 | Repo | `d:\retina\retinitry` (GitHub: `reesick/retina-bkx`, branch `main`) |
 | Original brief documents (Word, PowerPoint) | `d:\retina\*.docx`, `d:\retina\*.pptx` |
 | UI taste reference app | `d:\retina\stronger` |
-| Trained ONNX models + fitted JSON | `d:\retina\retinitry\server\models\` |
+| Trained ONNX models + fitted JSON | `server\models\` (`*.onnx` rebuilt from `server\models\parts\`; the parts and JSON are in git) |
 | Training checkpoints (PyTorch) | `d:\retina\retinitry\runs\` (1.0 GB, not in git) |
 | Processed datasets | `d:\retina\retinitry\data\processed\` (2.1 GB, not in git) |
 | Python environment | `d:\retina\retinitry\.venv` (4.8 GB) |

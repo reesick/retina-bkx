@@ -98,7 +98,7 @@ Legend:
 | `logs/client.log` contains entries from QA runs (induced crashes) | Noise when debugging | delete the file to reset |
 | Demo encounters pair images from different people to show a two-eye screening | Fine for a demo; not a real patient | `server/demo/ATTRIBUTION.md` says so |
 | Policy version string is a UTC timestamp (`fit-20261102-2332`) though the fit ran 03 Nov IST | Cosmetic | `ml/eval/evaluate.py` |
-| `requirements.txt` mixes training and inference needs (installs torch, timm etc. even to only run the app) | Heavy install for a runtime-only machine | see 07 |
+| Two requirement files: `requirements-runtime.txt` (pinned, app only) and `requirements.txt` (training, unpinned) | Training installs may drift | repo root |
 | Server is single-process; one analysis worker thread; SQLite | Fine for one laptop; not for many users | `server/app/worker.py` |
 
 ## 5. Test inventory (last run 03 Nov 2026)

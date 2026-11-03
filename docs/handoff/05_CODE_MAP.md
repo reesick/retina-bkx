@@ -41,7 +41,7 @@ Line counts are approximate (03 Nov 2026).
 | `storage.py` | ~65 | File layout for originals, canonical images and overlays |
 | `ids.py` | ~45 | Short ids, patient codes, ISO timestamps |
 | `server/tests/` | ~570 | Pytest suite with a fake pipeline (full flow, SSE, review rules, referrals, audit tamper, PDF, replay) |
-| `server/models/` | | Model files and fitted JSON (ONNX not in git) |
+| `server/models/` | | Model files and fitted JSON (ONNX shipped as parts in `server/models/parts/`, rebuilt by `scripts/models.py`) |
 | `server/demo/` | | Six demo encounters (12 CC-BY images), `cases.json`, `ATTRIBUTION.md` |
 
 ## web/src/ (React app)

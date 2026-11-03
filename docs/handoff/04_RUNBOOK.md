@@ -18,25 +18,27 @@ To run with no server at all, use `npm run dev:mock`.
 
 To reset the app's data (cases, reviews, audit), stop the server and delete `server\storage\`. Models are not affected.
 
-## 2. Set up on a NEW machine (read carefully)
+## 2. Set up on a NEW machine
 
-The model files are **not in git**. There are two options.
+Everything needed to run is in git: code, the five models as 45 MB parts, fitted thresholds, demo images and the
+prebuilt web app.
 
-**Option A: copy (recommended, about 5 min)**
-1. `git clone https://github.com/reesick/retina-bkx.git retinitry`
-2. Copy from this laptop into the new repo:
-   - `server\models\*.onnx` (5 files, ~527 MB)
-   - `server\models\ood.npz`
-   - The JSON files in `server\models\` are in git.
-3. Install Python 3.11, then run `powershell -ExecutionPolicy Bypass -File scripts\setup_env.ps1`. It creates `.venv` with
-   CUDA torch and all deps; for runtime only, see 07 about splitting requirements.
-4. Install Node 22, then run `cd web; npm ci; npm run build`.
-5. `scripts\start.ps1`.
+1. Install **Python 3.11** (`winget install Python.Python.3.11`) and Git.
+2. Clone and start:
+   ```powershell
+   git clone https://github.com/reesick/retina-bkx.git retinitry
+   cd retinitry
+   .\START_RETINITRY.bat
+   ```
+   The first run (3–6 min) creates `.venv` from `requirements-runtime.txt`, runs `python scripts\models.py assemble`
+   (rebuilds `server\models\*.onnx` and checks every SHA-256), starts the server and opens the browser.
+   No GPU and no Node.js are needed.
+3. **To retrain** (needs an NVIDIA GPU, about 4–5 h on an RTX 4050, and ~10 GB of disk):
+   - run `scripts\setup_env.ps1` for CUDA PyTorch;
+   - then `scripts\train.ps1`;
+   - then `python scripts\models.py pack` and commit `server\models\parts\` plus the JSON files.
 
-**Option B: retrain (about 4–5 h on an RTX 4050 6 GB, ~10 GB of disk for data and caches)**
-1. Steps 1, 3 and 4 above.
-2. Run `powershell -ExecutionPolicy Bypass -File scripts\train.ps1`.
-3. Results will differ slightly from the numbers in 03, because training is not bit-reproducible.
+   Results will differ slightly from 03, because training is not bit-reproducible.
 
 ## 3. Tests
 

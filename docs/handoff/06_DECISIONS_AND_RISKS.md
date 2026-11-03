@@ -50,7 +50,7 @@
 
 | Risk | Likelihood | Mitigation in place / needed |
 |---|---|---|
-| Model files lost (not in git) | Medium | Copy `server/models` somewhere safe; consider Git LFS or a release artifact (07) |
+| Repo size grows with every retrain (models are ~500 MB of parts per version in git history) | Medium | Re-pack only when models change; consider Git LFS or release assets if retrained often |
 | WebGL crashes on weak or busy GPUs | Medium | Context-loss recovery, auto low-power, single canvas; real-GPU testing still needed |
 | Mock policy (TS) drifts from `core/policy.py` | Medium | Only affects mock mode; add a shared test vector (07) |
 | Dependency drift (torch cu128, onnxruntime, timm versions) | Medium | Pin versions in requirements (currently unpinned) |
