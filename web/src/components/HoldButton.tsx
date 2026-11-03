@@ -8,9 +8,9 @@ import { useReducedMotion } from "../lib/store";
  * with accelerating ticks, the circle grows. Release early: the ring drains with a falling sound. Space/Enter hold too.
  */
 export function HoldButton({
-  onComplete, ms = 1200, size = 168, color = "#fff", label = "HOLD\nTO SIGN", disabled, doneLabel = "SIGNED.", done = false, pending = false,
+  onComplete, ms = 1200, size = 168, color = "#fff", label = "HOLD\nTO SIGN", disabled, disabledReason, doneLabel = "SIGNED.", done = false, pending = false,
 }: {
-  onComplete: () => void; ms?: number; size?: number; color?: string; label?: string; disabled?: boolean; doneLabel?: string; done?: boolean; pending?: boolean;
+  onComplete: () => void; ms?: number; size?: number; color?: string; label?: string; disabled?: boolean; disabledReason?: string; doneLabel?: string; done?: boolean; pending?: boolean;
 }) {
   const reduced = useReducedMotion();
   const p = useMotionValue(0);
@@ -66,7 +66,8 @@ export function HoldButton({
     <motion.button
       type="button"
       aria-label={done ? "Signed" : "Press and hold to sign"}
-      aria-disabled={disabled || done}
+      disabled={disabled || done}
+      title={done ? "Already signed" : disabled ? disabledReason ?? "Not available yet" : "Press and hold to sign (or hold Space)"}
       onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); start(); }}
       onPointerUp={end}
       onPointerCancel={end}
@@ -74,14 +75,14 @@ export function HoldButton({
       onKeyDown={(e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); start(); } }}
       onKeyUp={(e) => { if (e.key === " " || e.key === "Enter") end(); }}
       onContextMenu={(e) => e.preventDefault()}
-      className={`relative grid touch-none select-none place-items-center rounded-full ${disabled ? "cursor-not-allowed opacity-35" : "cursor-pointer"}`}
+      className={`group relative grid touch-none select-none place-items-center rounded-full ${disabled ? "cursor-not-allowed opacity-35" : done ? "cursor-default" : "cursor-pointer"}`}
       style={{ width: size, height: size, scale }}
       animate={done && !reduced ? { scale: [1.12, 0.97, 1] } : undefined}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
     >
-      <motion.span className="absolute inset-[14px] rounded-full" style={{ boxShadow: glow, background: "radial-gradient(circle at 50% 35%, #3a3a3c, #1c1c1e 70%)" }} />
+      <motion.span className="absolute inset-[14px] rounded-full transition-[filter] duration-200 group-enabled:group-hover:brightness-125" style={{ boxShadow: glow, background: "radial-gradient(circle at 50% 35%, #3a3a3c, #1c1c1e 70%)" }} />
       <svg width={size} height={size} className="absolute inset-0 overflow-visible" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={3} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={3} className="transition-[stroke] duration-200 group-enabled:group-hover:[stroke:rgba(255,255,255,0.3)]" />
         <motion.circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={3.5} strokeLinecap="round" style={{ strokeDasharray: dash }} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
         <motion.circle cx={hx} cy={hy} r={6} fill={color} style={{ filter: "blur(4px)", opacity: headOpacity }} />
         <motion.circle cx={hx} cy={hy} r={2.6} fill="#fff" style={{ opacity: headOpacity }} />

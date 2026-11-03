@@ -3,7 +3,7 @@ import { useId } from "react";
 import { sound } from "../lib/sound";
 import { SPRING } from "./motion";
 
-export interface SegOption<T extends string> { value: T; label: string; disabled?: boolean }
+export interface SegOption<T extends string> { value: T; label: string; disabled?: boolean; title?: string }
 
 export function Segmented<T extends string>({
   options, value, onChange, size = "md", className = "", ariaLabel,
@@ -21,6 +21,7 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={active}
             disabled={o.disabled}
+            title={o.title ?? (o.disabled ? "Not available here" : undefined)}
             onClick={() => {
               if (!active) sound.tick();
               onChange(o.value);
@@ -33,7 +34,7 @@ export function Segmented<T extends string>({
                 if (!n.disabled) onChange(n.value);
               }
             }}
-            className={`relative flex-1 whitespace-nowrap rounded-[8px] px-3.5 font-medium transition-colors disabled:opacity-30 ${h} ${active ? "text-white" : "text-l2 hover:text-white/85"}`}
+            className={`relative flex-1 whitespace-nowrap rounded-[8px] px-3.5 font-medium transition-colors disabled:opacity-40 ${h} ${active ? "text-white" : "text-white/70 hover:bg-white/[0.04] hover:text-white"}`}
           >
             {active && (
               <motion.span layoutId={`seg-${id}`} transition={SPRING} className="absolute inset-0 rounded-[8px] bg-s2" style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.5), inset 0 0 0 0.5px rgba(255,255,255,0.1)" }} />

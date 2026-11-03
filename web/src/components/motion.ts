@@ -8,9 +8,9 @@ export const pageVariants = (reduced: boolean): Variants =>
   reduced
     ? { initial: { opacity: 0 }, animate: { opacity: 1, transition: { duration: 0.2 } }, exit: { opacity: 0, transition: { duration: 0.15 } } }
     : {
-        initial: { opacity: 0, y: 8, filter: "blur(8px)" },
-        animate: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.35, ease: EASE } },
-        exit: { opacity: 0, y: -4, filter: "blur(6px)", transition: { duration: 0.2, ease: EASE } },
+        initial: { opacity: 0, y: 8 },
+        animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: EASE } },
+        exit: { opacity: 0, y: -4, transition: { duration: 0.15, ease: EASE } },
       };
 
 export const listVariants: Variants = {

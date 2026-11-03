@@ -1,9 +1,9 @@
 // Eye Lab · Optics: live meridional ray tracing through the Le Grand schematic eye (src/lib/optics.ts).
 import { Html, Line, OrbitControls } from "@react-three/drei";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { buildEye, traceFan, type EyeModel as OpticEye, type Surface, type ThinLens } from "../lib/optics";
-import { Stage } from "./Stage";
+import { CameraPreset } from "./LabScenes";
 
 /** Optical axis x (mm from the corneal apex) -> world X centred on the globe. */
 const OX = -12;
@@ -29,6 +29,7 @@ function Fill({ a, b, semi, color, opacity }: { a: Surface; b: Surface; semi: nu
     shape.closePath();
     return new THREE.ShapeGeometry(shape, 1);
   }, [a, b, semi]);
+  useEffect(() => () => geom.dispose(), [geom]);
   return (
     <mesh geometry={geom} position={[0, 0, -0.05]}>
       <meshBasicMaterial color={color} transparent opacity={opacity} depthWrite={false} side={THREE.DoubleSide} />
@@ -95,13 +96,15 @@ function Scene({ eye, objectDist, lens, nRays }: { eye: OpticEye; objectDist: nu
   );
 }
 
-export default function OpticsView({ axial, accommodation, pupil, objectDist, lensPower, nRays = 15, className = "" }: { axial: number; accommodation: number; pupil: number; objectDist: number; lensPower: number | null; nRays?: number; className?: string }) {
+/** Optics scene content for the shared Lab stage. */
+export default function OpticsScene({ axial, accommodation, pupil, objectDist, lensPower, nRays = 15 }: { axial: number; accommodation: number; pupil: number; objectDist: number; lensPower: number | null; nRays?: number }) {
   const eye = useMemo(() => buildEye({ axialLength: axial, accommodation, pupil }), [axial, accommodation, pupil]);
   const lens = useMemo<ThinLens | null>(() => (lensPower != null ? { x: -12, power: lensPower } : null), [lensPower]);
   return (
-    <Stage className={className} camera={{ position: [-4, 0, 52], fov: 38 }} bloom={0.9}>
+    <>
+      <CameraPreset position={[-4, 0, 52]} fov={38} look={[-4, 0, 0]} />
       <Scene eye={eye} objectDist={objectDist} lens={lens} nRays={nRays} />
       <OrbitControls enablePan={false} target={[-4, 0, 0]} minDistance={22} maxDistance={90} minAzimuthAngle={-0.5} maxAzimuthAngle={0.5} minPolarAngle={Math.PI / 2 - 0.4} maxPolarAngle={Math.PI / 2 + 0.4} />
-    </Stage>
+    </>
   );
 }

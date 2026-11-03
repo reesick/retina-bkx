@@ -100,7 +100,15 @@ export function ScanCanvas({ src, active, size, tint = [1, 1, 1] }: { src: strin
       gl.deleteProgram(prog);
     };
   }, [src]);
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  // release the GPU context when the theatre unmounts (otherwise it lingers until GC)
+  useEffect(() => {
+    const c = ref.current;
+    return () => {
+      const gl = c?.getContext("webgl");
+      gl?.getExtension("WEBGL_lose_context")?.loseContext();
+    };
+  }, []);
+  const dpr = Math.min(1.5, window.devicePixelRatio || 1);
   return (
     <canvas
       ref={ref}

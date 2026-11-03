@@ -47,7 +47,7 @@ export function TopBar() {
 
 export function Footer() {
   return (
-    <footer className="px-6 pb-28 pt-10 text-center text-footnote text-l3 lg:px-8">
+    <footer className="px-6 pb-28 pt-0 text-center text-footnote text-l3 lg:px-8">
       Research prototype · triage aid, not a diagnosis · runs offline
     </footer>
   );

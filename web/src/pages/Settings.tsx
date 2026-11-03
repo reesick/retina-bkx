@@ -23,10 +23,10 @@ export default function Settings() {
   const p = policy.data;
   return (
     <Page className="max-w-[720px]">
-      <LargeTitle>Settings</LargeTitle>
+      <LargeTitle sub="Your name for sign-offs, sound and motion, how the 3D eye is drawn, and where every AI threshold came from. Changes save on this device straight away.">Settings</LargeTitle>
       <div className="space-y-8">
         <Group header="Reviewer">
-          <Row label="Name" right={<input value={s.reviewer} onChange={(e) => s.set({ reviewer: e.target.value })} className="w-56 bg-transparent text-right text-[15px] text-l2 focus:text-white" aria-label="Reviewer name" />} />
+          <Row label="Name" right={<input value={s.reviewer} onChange={(e) => s.set({ reviewer: e.target.value })} className="w-56 bg-transparent text-right text-[15px] text-l2 focus:text-white" placeholder="Your name" aria-label="Reviewer name" />} />
         </Group>
 
         <Group header="Feedback">

@@ -3,19 +3,22 @@ import { lazy, Suspense, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import type { Grade } from "../api/types";
 import { Switch } from "../components/Switch";
-import { Skeleton } from "../components/Skeleton";
 import { SPRING } from "../components/motion";
 import { buildEye, focusError, refractiveError, refractiveLabel, traceFan, trialLens, LE_GRAND_EMMETROPIC_AXIAL } from "../lib/optics";
+import { useRouteActive } from "../lib/route";
 import { IRIS_COLORS } from "../three/EyeModel";
-import { AnatomyScene, CoverageScene, StagesScene, STAGE_TEXT, coverageFields, coverageShare, type CoverageKey } from "../three/LabScenes";
+import { ANATOMY_CAM, AnatomyScene, CoverageScene, StagesScene, STAGE_TEXT, coverageFields, coverageShare, type CoverageKey } from "../three/LabScenes";
+import { Stage } from "../three/Stage";
 
-const OpticsView = lazy(() => import("../three/OpticsView"));
-const Scenes = { Anatomy: AnatomyScene, Stages: StagesScene, Coverage: CoverageScene };
+const OpticsScene = lazy(() => import("../three/OpticsView"));
 
 type Mode = "anatomy" | "optics" | "stages" | "coverage";
 
 export default function EyeLab() {
-  const initial = new URLSearchParams(useLocation().search).get("mode") as Mode | null;
+  const loc = useLocation();
+  if (new URLSearchParams(loc.search).get("qa_crash") === "1") throw new Error("QA induced crash (qa_crash=1)");
+  const routeActive = useRouteActive((p) => p.startsWith("/lab"));
+  const initial = new URLSearchParams(loc.search).get("mode") as Mode | null;
   const [mode, setMode] = useState<Mode>(initial && ["anatomy", "optics", "stages", "coverage"].includes(initial) ? initial : "anatomy");
   // anatomy
   const [explode, setExplode] = useState(0);
@@ -49,35 +52,37 @@ export default function EyeLab() {
 
   return (
     <div className="fixed inset-0 top-[84px] overflow-hidden">
-      <Suspense fallback={<div className="absolute inset-0 grid place-items-center"><Skeleton round className="h-72 w-72" /></div>}>
-        <AnimatePresence mode="wait">
-          <motion.div key={mode} className="absolute inset-0" initial={{ opacity: 0, scale: 1.02 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+      {routeActive && (
+        <Stage className="absolute inset-0" camera={{ position: ANATOMY_CAM.position, fov: ANATOMY_CAM.fov }} bloom={mode === "optics" ? 0.9 : mode === "anatomy" ? 0.55 : 0.3} effects>
+          <Suspense fallback={null}>
             {mode === "optics" ? (
-              <OpticsView className="absolute inset-0" axial={axial} accommodation={acc} pupil={pupil} objectDist={objectDist} lensPower={optics.lensPower} />
+              <OpticsScene key="optics" axial={axial} accommodation={acc} pupil={pupil} objectDist={objectDist} lensPower={optics.lensPower} />
             ) : mode === "anatomy" ? (
-              <Scenes.Anatomy className="absolute inset-0" explode={explode} section={section} irisColor={IRIS_COLORS[iris]} />
+              <AnatomyScene key="anatomy" explode={explode} section={section} irisColor={IRIS_COLORS[iris]} />
             ) : mode === "stages" ? (
-              <Scenes.Stages className="absolute inset-0" grade={grade} />
+              <StagesScene key="stages" grade={grade} />
             ) : (
-              <Scenes.Coverage className="absolute inset-0" k={cov} />
+              <CoverageScene key="coverage" k={cov} />
             )}
-          </motion.div>
-        </AnimatePresence>
-      </Suspense>
+          </Suspense>
+        </Stage>
+      )}
 
-      <motion.aside initial={{ x: -30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={SPRING} className="glass absolute bottom-28 left-6 top-4 z-10 flex w-[360px] flex-col overflow-hidden rounded-[26px]">
+      <motion.aside initial={{ x: -30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={SPRING} className="panel absolute bottom-28 left-6 top-4 z-10 flex w-[360px] flex-col overflow-hidden rounded-[26px]">
         <div className="p-5 pb-3">
           <h1 className="text-title-xl">Eye Lab</h1>
+          <p className="mt-1 text-[13px] leading-snug text-l2">Explore a generic 3D eye: its parts, how it focuses light, what each stage of diabetic retinopathy looks like, and how much of the retina a photo covers. Pick a mode below.</p>
           <div className="mt-3 grid grid-cols-2 gap-1.5">
             {(["anatomy", "optics", "stages", "coverage"] as Mode[]).map((m) => (
-              <button key={m} type="button" onClick={() => setMode(m)} aria-pressed={mode === m} className={`relative h-9 rounded-[12px] text-[14px] font-medium capitalize ${mode === m ? "text-black" : "text-white/75 hover:bg-white/5"}`}>
+              <button key={m} type="button" onClick={() => setMode(m)} aria-pressed={mode === m} className={`relative h-9 rounded-[12px] text-[14px] font-medium capitalize ${mode === m ? "text-black" : "text-white/80 hover:bg-white/10 hover:text-white"}`}>
                 {mode === m && <motion.span layoutId="labmode" transition={SPRING} className="absolute inset-0 rounded-[12px] bg-white" />}
                 <span className="relative">{m === "stages" ? "DR stages" : m}</span>
               </button>
             ))}
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+        <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={mode} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
           {mode === "anatomy" && (
             <div className="space-y-5">
               <p className="text-[14px] text-l2">Hover any part to see what it does. Drag to orbit, scroll to zoom.</p>
@@ -140,7 +145,8 @@ export default function EyeLab() {
               <Caption>Share of the modelled retina inside each field, computed on this generic eye (field angles treated as subtended at the eye centre, retina to 140° from the posterior pole). Single-field screening sees only the posterior pole; peripheral lesions fall in the grey.</Caption>
             </div>
           )}
-        </div>
+        </motion.div>
+        </AnimatePresence>
       </motion.aside>
       <div className="pointer-events-none absolute inset-x-0 bottom-[92px] text-center text-footnote text-l3">Research prototype · triage aid, not a diagnosis · runs offline · approximate generic eye</div>
     </div>

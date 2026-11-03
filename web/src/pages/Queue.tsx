@@ -1,14 +1,16 @@
 import { motion } from "framer-motion";
 import { AlertTriangle, Clock, Eye as EyeIcon, Glasses, Layers, Crosshair } from "../components/icons";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Inbox } from "lucide-react";
+import { DemoButton } from "../components/DemoButton";
+import { EmptyState } from "../components/EmptyState";
 import { assetUrl } from "../api/client";
 import { useQueue } from "../api/hooks";
 import type { EncounterSummary, Outcome } from "../api/types";
 import { Odometer } from "../components/Odometer";
 import { OutcomePill } from "../components/OutcomePill";
 import { Page } from "../components/Page";
-import { Ring } from "../components/Ring";
 import { Segmented } from "../components/Segmented";
 import { ErrorState, Skeleton } from "../components/Skeleton";
 import { LargeTitle } from "../components/TopBar";
@@ -50,7 +52,7 @@ export default function Queue() {
 
   return (
     <Page>
-      <LargeTitle right={<div className="text-[44px] font-semibold leading-none tracking-[-0.03em]"><Odometer value={rows.length} /></div>} sub="Sorted by priority. ↑ ↓ to move, Enter to open, A to sign off.">
+      <LargeTitle right={<div className="text-[44px] font-semibold leading-none tracking-[-0.03em]" aria-label={`${rows.length} cases`}><Odometer value={rows.length} /></div>} sub={<>Cases the AI could not settle on its own, or that need a clinician's signature. Most urgent first. Open one to review and sign.<span className="mt-1 block text-footnote text-l2">Keyboard: ↑ ↓ to move, Enter to open, A to jump to sign-off.</span></>}>
         Queue
       </LargeTitle>
       <Segmented
@@ -65,14 +67,21 @@ export default function Queue() {
           { value: "RETAKE", label: `Retake ${count("RETAKE")}` },
         ]}
       />
+      <p className="-mt-3 mb-5 text-footnote text-l2"><b className="font-semibold text-white/85">Human review</b>: the AI abstained, a person decides. <b className="font-semibold text-white/85">Refer</b>: the AI suggests a specialist; sign to confirm. <b className="font-semibold text-white/85">Retake</b>: the photo is too poor to read.</p>
       {q.isLoading && <div className="space-y-px overflow-hidden rounded-card">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-[72px] !rounded-none" />)}</div>}
       {q.isError && <ErrorState error={q.error} onRetry={() => void q.refetch()} />}
       {q.data && rows.length === 0 && (
-        <div className="flex flex-col items-center py-20">
-          <Ring value={1} size={140} stroke={6} color="rgba(255,255,255,0.25)" head={false} />
-          <div className="mt-6 text-title">Nothing needs you.</div>
-          <div className="mt-1 text-body text-l2">{filter === "all" ? "Every analysed encounter is signed." : "No cases with this outcome."}</div>
-        </div>
+        filter === "all" ? (
+          <EmptyState
+            icon={<Inbox className="h-6 w-6" />}
+            title="Nothing needs you right now."
+            body="When the AI is unsure, a photo is too poor, or a referral needs a signature, the case lands here. Run a demo case to see what a queued case looks like."
+            action={<DemoButton name="human-review" />}
+            secondary={<Link to="/screen/new" className="btn-ghost h-11">Start a screening</Link>}
+          />
+        ) : (
+          <EmptyState compact title="No cases with this outcome." body="Pick another filter above, or All to see every waiting case." />
+        )
       )}
       {rows.length > 0 && (
         <div className="overflow-hidden rounded-card bg-s1" role="listbox" aria-label="Queue" aria-activedescendant={rows[cursor] ? `q-${rows[cursor].id}` : undefined}>

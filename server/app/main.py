@@ -119,6 +119,35 @@ def create_app(pipeline: Any = None, data_dir: Optional[Path] = None, models_dir
 
     api = APIRouter(prefix="/api")
 
+    client_log = Path(os.environ.get("RETINITRY_LOGS", str(Path(__file__).resolve().parents[2] / "logs"))) / "client.log"
+    client_log.parent.mkdir(parents=True, exist_ok=True)
+    log_lock = threading.Lock()
+
+    @api.post("/client-log")
+    async def post_client_log(request: Request):
+        """Front-end errors, unhandled rejections and WebGL context losses (one JSON line each)."""
+        try:
+            raw = await request.body()
+            body = json.loads(raw[:20000] or b"{}")
+        except Exception:
+            body = {"message": "unparseable client log"}
+        entry = {"at": iso(), **{k: (str(v)[:4000] if not isinstance(v, (int, float, bool)) else v)
+                                 for k, v in body.items() if k in ("level", "kind", "message", "stack", "url", "route",
+                                                                   "component", "ua", "extra")}}
+        with log_lock:
+            if client_log.exists() and client_log.stat().st_size > 5_000_000:
+                client_log.replace(client_log.with_suffix(".log.1"))
+            with open(client_log, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry) + "\n")
+        return {"ok": True}
+
+    @api.get("/client-log")
+    def get_client_log(limit: int = Query(100, ge=1, le=1000)):
+        if not client_log.exists():
+            return {"items": []}
+        lines = client_log.read_text(encoding="utf-8", errors="replace").splitlines()[-limit:]
+        return {"items": [json.loads(x) for x in lines if x.strip().startswith("{")][::-1]}
+
     # ------------------------------------------------------------ health / config
     @api.get("/health")
     def health():

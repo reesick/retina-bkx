@@ -1,6 +1,7 @@
 import { AnimatePresence } from "framer-motion";
 import { lazy, Suspense } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { GlassTabBar } from "./components/GlassTabBar";
 import { Toasts } from "./components/Toasts";
 import { Footer, TopBar } from "./components/TopBar";
@@ -21,12 +22,14 @@ export default function App() {
   const loc = useLocation();
   const immersive = /\/analyse$/.test(loc.pathname);
   const lab = loc.pathname.startsWith("/lab");
+  const routeKey = loc.pathname.split("/").slice(0, 3).join("/");
   return (
     <div className="relative min-h-screen bg-black">
       {!immersive && <TopBar />}
+      <ErrorBoundary key={routeKey}>
       <Suspense fallback={<div className="h-[60vh]" />}>
         <AnimatePresence mode="wait" initial={false}>
-          <Routes location={loc} key={loc.pathname.split("/").slice(0, 3).join("/")}>
+          <Routes location={loc} key={routeKey}>
             <Route path="/" element={<Today />} />
             <Route path="/screen/new" element={<NewScreening />} />
             <Route path="/screen/:encId/analyse" element={<Theatre />} />
@@ -41,6 +44,7 @@ export default function App() {
           </Routes>
         </AnimatePresence>
       </Suspense>
+      </ErrorBoundary>
       {immersive ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-3 z-40 text-center text-footnote text-l3">Research prototype · triage aid, not a diagnosis · runs offline</div>
       ) : (

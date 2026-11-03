@@ -82,7 +82,7 @@ export const SignOff = forwardRef<HTMLDivElement, { enc: Encounter; autoFocus?: 
 
   const aiColor = outcomeColor(ai.outcome, ai.urgency);
   return (
-    <div ref={ref} id="signoff" className="card p-5" style={{ boxShadow: "0 -20px 40px rgba(0,0,0,0.9)" }}>
+    <div ref={ref} id="signoff" className="card p-5" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.12)" }}>
       <div className="flex items-baseline justify-between">
         <h3 className="text-title">Sign-off</h3>
         <span className="text-[12px] text-l3">Clinician makes the final decision</span>
@@ -112,12 +112,12 @@ export const SignOff = forwardRef<HTMLDivElement, { enc: Encounter; autoFocus?: 
         </div>
       )}
       <div className="mt-5 flex items-center gap-5">
-        <HoldButton size={150} color={aiColor} disabled={!allAck || review.isPending} pending={review.isPending} label={"HOLD TO\nAPPROVE"} onComplete={() => submit("approve")} />
+        <HoldButton size={150} color={aiColor} disabled={!allAck || review.isPending} disabledReason={review.isPending ? "Signing…" : "Tick every flag above first"} pending={review.isPending} label={"HOLD TO\nAPPROVE"} onComplete={() => submit("approve")} />
         <div className="min-w-0 flex-1">
           <div className="text-headline">Approve AI outcome</div>
           <div className="text-[13px]" style={{ color: aiColor }}>{OUTCOME_LABEL[ai.outcome]}{ai.urgency ? ` · ${urgencyLabel(ai.urgency)}` : ""}</div>
-          <div className="mt-1 text-[12px] text-l3">{allAck ? "Press and hold 1.2 s (or hold Space)." : "Tick every flag first."}</div>
-          <button type="button" className="btn-ghost mt-3" disabled={!allAck} onClick={() => { setFinal(ai.outcome === "REFER" ? "HUMAN_REVIEW" : "REFER"); setSheet(true); }}>Override…</button>
+          <div className="mt-1 text-[12px] text-l2">{allAck ? "Press and hold 1.2 s (or hold Space)." : "Tick every flag above first; then the button unlocks."}</div>
+          <button type="button" className="btn-ghost mt-3" disabled={!allAck} title={allAck ? "Sign a different outcome than the AI" : "Tick every flag above first"} onClick={() => { setFinal(ai.outcome === "REFER" ? "HUMAN_REVIEW" : "REFER"); setSheet(true); }}>Override…</button>
         </div>
       </div>
 
@@ -152,10 +152,10 @@ export const SignOff = forwardRef<HTMLDivElement, { enc: Encounter; autoFocus?: 
                 return <button key={r} type="button" aria-pressed={on} onClick={() => { sound.tick(); setReasonChips((s) => { const n = new Set(s); if (n.has(r)) n.delete(r); else n.add(r); return n; }); }} className={`chip ${on ? "!bg-white !text-black" : ""}`}>{r}</button>;
               })}
             </div>
-            <textarea value={reasonText} onChange={(e) => setReasonText(e.target.value)} placeholder="Free text" className="input mt-3 h-24 resize-none py-2.5" aria-label="Override reason" />
+            <textarea value={reasonText} onChange={(e) => setReasonText(e.target.value)} placeholder="Why do you disagree with the AI?" className="input mt-3 h-24 resize-none py-2.5" aria-label="Override reason" />
           </div>
           <div className="flex items-center gap-5">
-            <HoldButton size={140} color={outcomeColor(final, urg)} disabled={!(reasonChips.size || reasonText.trim()) || review.isPending} pending={review.isPending} label={"HOLD\nTO SIGN"} onComplete={() => submit("override")} />
+            <HoldButton size={140} color={outcomeColor(final, urg)} disabled={!(reasonChips.size || reasonText.trim()) || review.isPending} disabledReason={review.isPending ? "Signing…" : "Pick or type a reason first"} pending={review.isPending} label={"HOLD\nTO SIGN"} onComplete={() => submit("override")} />
             <div className="text-[13px] text-l2">
               AI said <span style={{ color: aiColor }}>{OUTCOME_LABEL[ai.outcome]}</span>. You are signing <span style={{ color: outcomeColor(final, urg) }}>{OUTCOME_LABEL[final]}</span>. Both are stored.
               {review.isError && <div className="mt-1 text-urgent">{(review.error as Error).message}</div>}

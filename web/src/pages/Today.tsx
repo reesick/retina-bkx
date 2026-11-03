@@ -15,11 +15,15 @@ import { SPRING } from "../components/motion";
 import { ago } from "../lib/format";
 import { sound } from "../lib/sound";
 import { useUI } from "../lib/store";
+import { useRouteActive } from "../lib/route";
+import { ScrollStrip } from "../components/ScrollStrip";
+import { DemoButton } from "../components/DemoButton";
 
 const LivingEye = lazy(() => import("../three/LivingEye"));
 
 export default function Today() {
   const nav = useNavigate();
+  const eyeActive = useRouteActive((p) => p === "/");
   const stats = useStats();
   const health = useHealth();
   const recent = useEncounters({ limit: 200 });
@@ -62,50 +66,60 @@ export default function Today() {
             )}
           </div>
           <BeginButton onClick={() => nav("/screen/new")} />
+          <p className="mt-6 max-w-[380px] text-[14px] leading-snug text-l2">This is today at a glance. Begin a screening with photos of both eyes, open the cases that need you, or try a demo case below.</p>
         </div>
         <div className="relative h-[520px] lg:h-[640px]">
           <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05), transparent 45%)" }} />
-          <Suspense fallback={<div className="absolute inset-0 grid place-items-center"><Skeleton round className="h-64 w-64" /></div>}>
-            <LivingEye className="absolute inset-0" onActivate={() => nav("/lab")} />
-          </Suspense>
-          <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-footnote text-l3">Click the eye to open the Eye Lab</div>
+          {eyeActive && (
+            <Suspense fallback={<div className="absolute inset-0 grid place-items-center"><Skeleton round className="h-64 w-64" /></div>}>
+              <LivingEye className="absolute inset-0" onActivate={() => nav("/lab")} />
+            </Suspense>
+          )}
+          <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-footnote text-l2">Hover the eye, then click it to open the Eye Lab</div>
         </div>
       </section>
 
       <section className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Tile label="Awaiting review" value={stats.data?.awaiting_review} tone={awaiting > 0 ? "#FFD60A" : undefined} to="/queue" loading={stats.isLoading} />
-        <Tile label="Referred today" value={stats.data?.referred_today} to="/referrals" loading={stats.isLoading} />
-        <Tile label="Retakes today" value={stats.data?.retake_today} loading={stats.isLoading} />
+        <Tile label="Awaiting review" hint="Cases waiting for a clinician" value={stats.data?.awaiting_review} tone={awaiting > 0 ? "#FFD60A" : undefined} to="/queue" loading={stats.isLoading} />
+        <Tile label="Referred today" hint="Sent to a specialist" value={stats.data?.referred_today} to="/referrals" loading={stats.isLoading} />
+        <Tile label="Retakes today" hint="Photos too poor to read" value={stats.data?.retake_today} loading={stats.isLoading} />
         <div className="card flex items-center gap-4 p-5">
           <Ring value={refs.data?.stats.completed_rate ?? 0} size={72} stroke={6} color="#30D158">
             <span className="num text-[15px] font-semibold"><Odometer value={Math.round((refs.data?.stats.completed_rate ?? 0) * 100)} suffix="%" /></span>
           </Ring>
           <div>
             <div className="text-headline">Referral completion</div>
-            <div className="text-footnote text-l2">{refs.data ? `${refs.data.stats.total} referrals` : "–"}</div>
+            <div className="text-footnote text-l2">{refs.data ? (refs.data.stats.total ? `${refs.data.stats.total} referral${refs.data.stats.total === 1 ? "" : "s"}; share attended or later` : "No referrals yet") : "–"}</div>
           </div>
         </div>
       </section>
 
-      <section className="mt-10">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-title">Recent</h2>
-          <Link to="/queue" className="text-[14px] text-l2 hover:text-white">Queue <ArrowRight className="inline h-3.5 w-3.5" /></Link>
-        </div>
-        <div className="scrollbar-none -mx-2 flex gap-3 overflow-x-auto px-2 pb-2">
-          {recent.isLoading && Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-[184px] w-[168px] shrink-0 !rounded-card" />)}
-          {recent.isError && <div className="text-l2">Could not load recent encounters.</div>}
-          {recent.data?.length === 0 && <div className="text-l2">No screenings yet. Start one or try a demo case.</div>}
-          {recent.data?.slice(0, 14).map((e, i) => <RecentCard key={e.id} e={e} i={i} />)}
-        </div>
-      </section>
+      <ScrollStrip
+        className="mt-10"
+        label="Recent screenings"
+        header={<><h2 className="text-title">Recent</h2><p className="text-footnote text-l2">The latest screenings on this device. Open one to see the AI's reasoning.</p></>}
+        right={<Link to="/queue" className="link mr-2 text-[14px]">Open queue <ArrowRight className="inline h-3.5 w-3.5" /></Link>}
+      >
+        {recent.isLoading && Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-[184px] w-[168px] shrink-0 !rounded-card" />)}
+        {recent.isError && <div className="text-l2">Could not load recent encounters.</div>}
+        {recent.data?.length === 0 && (
+          <div className="card flex w-full flex-col items-start gap-3 p-6">
+            <div className="text-headline">No screenings yet</div>
+            <p className="text-body text-l2">Screenings you run appear here. Start one with photos of both eyes, or try a bundled demo case below.</p>
+            <div className="flex gap-2"><Link to="/screen/new" className="btn-white">Start a screening</Link><DemoButton name="refer-soon" className="btn-ghost" /></div>
+          </div>
+        )}
+        {recent.data?.slice(0, 14).map((e, i) => <RecentCard key={e.id} e={e} i={i} />)}
+      </ScrollStrip>
 
-      <section className="mt-10">
-        <h2 className="mb-1 text-title">Try a demo case</h2>
-        <p className="mb-3 text-footnote text-l2">Bundled public-dataset images with attribution. Each starts a real analysis on this device.</p>
-        <div className="scrollbar-none -mx-2 flex gap-3 overflow-x-auto px-2 pb-2">
+      <ScrollStrip
+        className="mt-10"
+        label="Demo cases"
+        header={<><h2 className="text-title">Try a demo case</h2><p className="text-footnote text-l2">Bundled public-dataset images with attribution. Each starts a real analysis on this device.</p></>}
+      >
           {demos.isLoading && Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-[108px] w-[320px] shrink-0 !rounded-card" />)}
           {demos.isError && <div className="text-l2">Demo cases unavailable.</div>}
+          {demos.data?.length === 0 && <div className="text-l2">No demo cases are bundled with this install.</div>}
           {demos.data?.map((d) => (
             <motion.button
               key={d.name}
@@ -115,14 +129,14 @@ export default function Today() {
               transition={SPRING}
               disabled={startDemo.isPending}
               onClick={() => startDemo.mutate(d.name)}
-              className="card flex w-[340px] shrink-0 items-center gap-4 p-4 text-left disabled:opacity-50"
-              title={`${d.source} · ${d.license}`}
+              className="card flex w-[340px] shrink-0 items-center gap-4 p-4 text-left transition-colors hover:bg-[#232325] disabled:opacity-50"
+              title={startDemo.isPending ? "Another demo is starting…" : `${d.source} · ${d.license}`}
             >
               <img src={assetUrl(d.thumb)} alt="" className="h-[76px] w-[76px] shrink-0 rounded-full object-cover" />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-headline">{d.title}</div>
+                <div className="text-headline leading-snug">{d.title}</div>
                 <div className="line-clamp-2 text-footnote text-l2">{d.description}</div>
-                <div className="mt-1 truncate text-[11px] text-l3">{d.eye} · {d.view} · {d.license}</div>
+                <div className="mt-1 text-[11px] text-l2">{d.eye} · {d.view} · {d.license}</div>
               </div>
               {startDemo.isPending && startDemo.variables === d.name ? (
                 <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -131,8 +145,7 @@ export default function Today() {
               )}
             </motion.button>
           ))}
-        </div>
-      </section>
+      </ScrollStrip>
     </Page>
   );
 }
@@ -159,15 +172,16 @@ function BeginButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function Tile({ label, value, tone, to, loading }: { label: string; value: number | undefined; tone?: string; to?: string; loading?: boolean }) {
+function Tile({ label, hint, value, tone, to, loading }: { label: string; hint?: string; value: number | undefined; tone?: string; to?: string; loading?: boolean }) {
   const inner = (
     <>
       {loading ? <Skeleton className="h-10 w-16" /> : <div className="text-[44px] font-semibold leading-none tracking-[-0.03em]" style={{ color: tone }}><Odometer value={value ?? 0} /></div>}
-      <div className="mt-3 text-[15px] text-l2">{label}</div>
+      <div className="mt-3 flex items-center gap-1 text-[15px] text-white/85">{label}{to && <ArrowRight className="h-3.5 w-3.5 text-l2" />}</div>
+      {hint && <div className="text-footnote text-l2">{hint}</div>}
     </>
   );
   return to ? (
-    <Link to={to} className="card block p-5 transition-colors hover:bg-[#232325]">{inner}</Link>
+    <Link to={to} className="card block p-5 transition-colors hover:bg-[#232325] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]">{inner}</Link>
   ) : (
     <div className="card p-5">{inner}</div>
   );
@@ -182,8 +196,8 @@ function RecentCard({ e, i }: { e: EncounterSummary; i: number }) {
           {e.thumb ? <img src={assetUrl(e.thumb)} alt="" className="h-[84px] w-[84px] rounded-full object-cover" /> : <div className="hatch h-[84px] w-[84px] rounded-full bg-s2" />}
           {signed && <Seal className="absolute -right-1 -top-1 h-6 w-6 rounded-full bg-black p-0.5 text-routine" />}
         </div>
-        <div className="num mt-3 w-full truncate text-[13px] font-semibold">{e.patient_code}</div>
-        <div className="mb-2 text-[11px] text-l3">{ago(e.created_at)} ago</div>
+        <div className="num mt-3 w-full break-all text-[13px] font-semibold leading-tight" title={e.patient_code}>{e.patient_code}</div>
+        <div className="mb-2 text-[11px] text-l2">{ago(e.created_at)} ago</div>
         <OutcomePill outcome={e.final_outcome ?? e.ai_outcome} urgency={e.ai_urgency} size="sm" />
       </Link>
     </motion.div>

@@ -18,6 +18,7 @@ import { defaultLayers, Viewer2D, type ViewerLayers } from "./Viewer2D";
 import { useQueryClient } from "@tanstack/react-query";
 import { qk } from "../../api/hooks";
 import { markDeterminismVerified } from "../../lib/session";
+import { useRouteActive } from "../../lib/route";
 
 const CaseEye = lazy(() => import("../../three/CaseEye"));
 
@@ -35,6 +36,7 @@ export default function CasePage() {
   const [layers, setLayers] = useState<ViewerLayers>(defaultLayers);
   const signRef = useRef<HTMLDivElement>(null);
   const wantSign = new URLSearchParams(loc.search).has("signoff");
+  const routeActive = useRouteActive((p) => p.startsWith("/case/"));
 
   // default to the first eye that has images
   useEffect(() => {
@@ -104,6 +106,11 @@ export default function CasePage() {
               </button>
             ))}
           </div>
+          {ai && !rv && image?.status === "done" && (
+            <button type="button" className="btn-white h-10" onClick={() => signRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })} title="Jump to the sign-off card">
+              Review and sign
+            </button>
+          )}
           <a
             href={IS_MOCK ? undefined : api.reportUrl(enc.id)}
             onClick={(e) => { if (IS_MOCK) { e.preventDefault(); toast({ text: "PDF reports are produced by the local server (not available in mock mode).", tone: "info" }); } }}
@@ -130,7 +137,7 @@ export default function CasePage() {
           <div><Viewer2D image={image} layers={layers} setLayers={(f) => setLayers(f)} selected={selected} onSelect={select} /></div>
           <div className="xl:sticky xl:top-6 xl:self-start">
             <Suspense fallback={<Skeleton className="aspect-square w-full !rounded-card" />}>
-              <CaseEye className="aspect-square w-full" image={image} layers={layer3d} selected={selLesion} onSelect={select} />
+              {routeActive ? <CaseEye className="aspect-square w-full" image={image} layers={layer3d} selected={selLesion} onSelect={select} /> : <div className="aspect-square w-full rounded-card bg-black" />}
             </Suspense>
           </div>
           <aside className="flex flex-col gap-4 lg:col-span-2 xl:col-span-1">
@@ -141,9 +148,7 @@ export default function CasePage() {
             <SafeguardsCard enc={enc} image={image} />
             <LesionsCard image={image} selected={selected} onSelect={select} />
             <ReceiptCard image={image} onVerified={markDeterminismVerified} />
-            <div className="sticky bottom-24 z-10">
-              <SignOff ref={signRef} enc={enc} autoFocus={wantSign} />
-            </div>
+            <SignOff ref={signRef} enc={enc} autoFocus={wantSign} />
           </aside>
         </div>
       )}

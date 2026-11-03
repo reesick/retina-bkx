@@ -15,13 +15,16 @@ import { sound } from "../../lib/sound";
 import { useUI } from "../../lib/store";
 import { VA_REFER_LOGMAR, VA_VALUES, vaToLogmar } from "../../lib/va";
 
-export function Card({ title, children, right, id }: { title?: ReactNode; children: ReactNode; right?: ReactNode; id?: string }) {
+export function Card({ title, children, right, id, explain }: { title?: ReactNode; children: ReactNode; right?: ReactNode; id?: string; explain?: ReactNode }) {
   return (
     <section id={id} className="card p-5">
       {title && (
-        <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h3 className="text-title">{title}</h3>
-          {right}
+        <div className="mb-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="text-title">{title}</h3>
+            {right}
+          </div>
+          {explain && <p className="mt-0.5 text-[13px] leading-snug text-l2">{explain}</p>}
         </div>
       )}
       {children}
@@ -51,6 +54,7 @@ export function OutcomeCard({ enc, image }: { enc: Encounter; image: ImageResult
   return (
     <Card>
       <div className="text-eyebrow uppercase text-l2">AI outcome · encounter</div>
+      <p className="mt-1 text-[13px] leading-snug text-l2">What the AI recommends for this patient, combining both eyes and the vision check. A clinician signs the final decision below.</p>
       <div className="mt-2 text-[52px] font-bold leading-none tracking-[-0.04em]" style={{ color: c, textShadow: `0 0 40px ${c}55` }}>{OUTCOME_WORD[ai.outcome]}</div>
       {ai.urgency && <div className="mt-2 text-headline">{urgencyLabel(ai.urgency)}</div>}
       <p className="mt-2 text-body text-white/85">{encounterReasonLine(enc)}</p>
@@ -95,7 +99,7 @@ export function ConfidenceCard({ image }: { image: ImageResult }) {
   const [cnn, vit] = g.models;
   const t = policy.data?.t_refer;
   return (
-    <Card title="Confidence">
+    <Card title="Confidence" explain="How likely the AI thinks this eye needs a specialist. Past the marked line on the ring, it recommends a referral.">
       <div className="flex flex-wrap items-center justify-between gap-6">
         <GradeBars probs={g.ensemble.probs} ghosts={g.models.map((m) => m.probs)} label="Ensemble grade" height={120} />
         <div className="flex flex-col items-center">
@@ -122,7 +126,7 @@ export function DoubtCard({ image }: { image: ImageResult }) {
   const prov = policy.data?.provenance;
   const fitted = prov?.fitted_on ?? "validation data";
   return (
-    <Card title="Doubt" right={<span className="text-[12px] text-l3">thresholds: {fitted}</span>}>
+    <Card title="Doubt" explain="How unsure the AI is. Above the line, it hands the case to a person." right={<span className="text-[12px] text-l2">thresholds: {fitted}</span>}>
       <Gauge label="Entropy" value={u.entropy} threshold={u.entropy_threshold} max={Math.log(5)} hint={prov?.t_entropy ? `Set on ${fitted}: ${prov.t_entropy}` : undefined} />
       <Gauge label="Grader disagreement" value={u.disagreement} threshold={u.disagreement_threshold} max={1} hint={prov?.t_disagreement ? `Set on ${fitted}: ${prov.t_disagreement}` : undefined} />
       <Gauge label="Unlike training images (OOD)" value={u.ood_score} threshold={u.ood_threshold} format={(v) => v.toFixed(1)} hint={prov?.t_ood ? `Set on ${fitted}: ${prov.t_ood}` : undefined} />
@@ -135,7 +139,7 @@ export function QualityCard({ image }: { image: ImageResult }) {
   if (!q) return null;
   const col = q.category === "adequate" ? "#30D158" : q.category === "usable" ? "#FFD60A" : "#FF453A";
   return (
-    <Card title="Quality" right={<span className="rounded-full px-2.5 py-1 text-[12px] font-semibold capitalize" style={{ background: `${col}22`, color: col }}>{q.category}</span>}>
+    <Card title="Quality" explain="Whether the photo is good enough to read. Failing a hard check means the photo must be retaken." right={<span className="rounded-full px-2.5 py-1 text-[12px] font-semibold capitalize" style={{ background: `${col}22`, color: col }}>{q.category}</span>}>
       {q.probs && (
         <div className="mb-3 flex h-2 overflow-hidden rounded-full" title="Quality model probabilities">
           <div style={{ width: `${q.probs.adequate * 100}%`, background: "#30D158" }} />
@@ -206,7 +210,7 @@ export function SafeguardsCard({ enc, image }: { enc: Encounter; image: ImageRes
   const mr = enc.images.find((i) => i.macular_risk?.flag)?.macular_risk ?? image?.macular_risk;
   const lat = image?.landmarks?.laterality;
   return (
-    <Card title="Clinical safeguards">
+    <Card title="Clinical safeguards" explain="Checks that can refer regardless of the AI: poor vision, exudates near the centre of vision, a left/right label mix-up.">
       <VAEdit enc={enc} />
       <div className="mt-3 rounded-[16px] bg-s2/60 p-3">
         <div className="flex items-center justify-between">
@@ -234,14 +238,14 @@ export function LesionsCard({ image, selected, onSelect }: { image: ImageResult;
   const [open, setOpen] = useState<LesionType | null>(null);
   if (!L) return null;
   return (
-    <Card title="Lesion candidates" right={<span className="text-[12px] text-l3">model-predicted</span>}>
+    <Card title="Lesion candidates" explain="Spots the AI marked as possible damage. Open a type and click one to find it on the photo and the 3D eye." right={<span className="text-[12px] text-l2">model-predicted</span>}>
       <div className="space-y-1.5">
         {LESION_TYPES.map((t) => {
           const s = L.summary[t];
           const list = L.items.filter((l) => l.type === t);
           return (
             <div key={t} className="rounded-[14px] bg-s2/50">
-              <button type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left" onClick={() => setOpen(open === t ? null : t)} aria-expanded={open === t} disabled={!list.length}>
+              <button type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left" onClick={() => setOpen(open === t ? null : t)} aria-expanded={open === t} disabled={!list.length} title={list.length ? `Show ${LESION_NAME[t].toLowerCase()} candidates` : "None found on this image"}>
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: LESION_COLOR[t], boxShadow: `0 0 8px ${LESION_COLOR[t]}` }} />
                 <span className="flex-1 text-[15px]">{LESION_NAME[t]}</span>
                 <span className="num text-[14px] font-semibold">{s.count}</span>
@@ -275,7 +279,7 @@ export function ReceiptCard({ image, onVerified }: { image: ImageResult; onVerif
   const replay = useReplay();
   const r = replay.data;
   return (
-    <Card title="Determinism receipt" right={<Hash className="h-4 w-4 text-l3" />}>
+    <Card title="Determinism receipt" explain="Proof the result is reproducible: re-running the same photo must give the same fingerprint (hash)." right={<Hash className="h-4 w-4 text-l3" />}>
       <dl className="num space-y-1.5 text-[12px]">
         <Row k="Input SHA-256" v={shortHash(image.sha256, 16)} full={image.sha256} />
         {Object.entries(image.model_versions ?? {}).map(([k, v]) => <Row key={k} k={k} v={shortHash(v, 16)} full={v} />)}
@@ -283,7 +287,7 @@ export function ReceiptCard({ image, onVerified }: { image: ImageResult; onVerif
         {image.timings_ms && <Row k="Compute" v={`${Object.values(image.timings_ms).reduce((a, b) => a + b, 0)} ms`} />}
       </dl>
       <div className="mt-4 flex items-center gap-3">
-        <button type="button" className="btn-ghost" disabled={replay.isPending || image.status !== "done"} onClick={() => replay.mutate(image.id, { onSuccess: (x) => { if (x.match) { sound.success(); onVerified?.(); } else sound.fail(); }, onError: () => sound.fail() })}>
+        <button type="button" className="btn-ghost" disabled={replay.isPending || image.status !== "done"} title={replay.isPending ? "Replaying…" : image.status !== "done" ? "Wait until the analysis finishes" : "Re-run every model and compare hashes"} onClick={() => replay.mutate(image.id, { onSuccess: (x) => { if (x.match) { sound.success(); onVerified?.(); } else sound.fail(); }, onError: () => sound.fail() })}>
           <RefreshCw className={`h-4 w-4 ${replay.isPending ? "animate-spin" : ""}`} /> {replay.isPending ? "Replaying…" : "Replay"}
         </button>
         <AnimatePresence>

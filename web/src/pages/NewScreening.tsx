@@ -128,14 +128,14 @@ export default function NewScreening() {
             <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
               <div className="card space-y-5 p-6">
                 <Field label="Patient code">
-                  <input value={code} onChange={(e) => setCode(e.target.value)} className="input num" aria-label="Patient code" />
+                  <input value={code} onChange={(e) => setCode(e.target.value)} className="input num" placeholder="Auto-generated" aria-label="Patient code" />
                 </Field>
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Age (optional)">
-                    <input inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value.replace(/\D/g, "").slice(0, 3))} className="input num" placeholder="–" aria-label="Age" />
+                    <input inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value.replace(/\D/g, "").slice(0, 3))} className="input num" placeholder="e.g. 58" aria-label="Age" />
                   </Field>
                   <Field label="Years with diabetes">
-                    <input inputMode="numeric" value={dy} onChange={(e) => setDy(e.target.value.replace(/\D/g, "").slice(0, 2))} className="input num" placeholder="–" aria-label="Years with diabetes" />
+                    <input inputMode="numeric" value={dy} onChange={(e) => setDy(e.target.value.replace(/\D/g, "").slice(0, 2))} className="input num" placeholder="e.g. 12" aria-label="Years with diabetes" />
                   </Field>
                 </div>
                 <Field label="Sex">
@@ -170,7 +170,7 @@ export default function NewScreening() {
                     <Segmented ariaLabel="VA method" value={method} onChange={setMethod} options={[{ value: "Snellen", label: "Snellen" }, { value: "Tumbling E", label: "Tumbling E" }, { value: "LogMAR chart", label: "LogMAR chart" }]} />
                   </Field>
                   <div className="grid grid-cols-2 gap-4">
-                    <Field label="Operator"><input value={operator} onChange={(e) => setOperator(e.target.value)} className="input" aria-label="Operator" /></Field>
+                    <Field label="Operator"><input value={operator} onChange={(e) => setOperator(e.target.value)} className="input" placeholder="Your name" aria-label="Operator" /></Field>
                     <Field label="Measured"><input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className="input num" aria-label="Measured at" /></Field>
                   </div>
                 </div>
@@ -204,6 +204,7 @@ export default function NewScreening() {
                 type="button"
                 whileTap={{ scale: 0.97 }}
                 disabled={!total || busy}
+                title={busy ? "Uploading…" : !total ? "Add at least one image first" : undefined}
                 onClick={() => void submit()}
                 className="btn-white relative h-14 min-w-[260px] overflow-hidden px-10 text-[17px]"
               >
@@ -294,7 +295,7 @@ function EyeSlot({
               </div>
               <label className="flex flex-col items-center text-[11px] text-l3">
                 FOV°
-                <input inputMode="numeric" value={s.fov} onChange={(e) => onChange(s.id, { fov: Math.max(20, Math.min(200, Number(e.target.value.replace(/\D/g, "")) || 45)) })} className="input num mt-0.5 h-8 w-14 px-2 text-center text-[13px]" aria-label="Field of view in degrees" />
+                <input inputMode="numeric" value={s.fov} onChange={(e) => onChange(s.id, { fov: Math.max(20, Math.min(200, Number(e.target.value.replace(/\D/g, "")) || 45)) })} className="input num mt-0.5 h-8 w-14 px-2 text-center text-[13px]" placeholder="45" aria-label="Field of view in degrees" />
               </label>
               <button type="button" onClick={() => onRemove(s.id)} className="grid h-8 w-8 place-items-center rounded-full text-l2 hover:bg-white/10 hover:text-urgent" aria-label="Remove image">
                 <Trash2 className="h-4 w-4" />

@@ -74,7 +74,7 @@ export default function CaseEye({
 
   return (
     <div className={`relative overflow-hidden rounded-card bg-black ${className}`}>
-      <Stage className="absolute inset-0" camera={{ position: [24, 10, 48], fov: 42 }} bloom={0.35}>
+      <Stage className="absolute inset-0" camera={{ position: [24, 10, 48], fov: 42 }} bloom={0.35} effects>
         <ExplodeDriver target={explode ? 0.8 : 0} value={ex} onChange={setExplodeV} />
         <EyeModel
           eye={image.eye}

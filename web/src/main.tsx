@@ -6,6 +6,9 @@ import { MotionConfig } from "framer-motion";
 import App from "./App";
 import "./index.css";
 import { useReducedMotion } from "./lib/store";
+import { installGlobalLogging } from "./lib/log";
+
+installGlobalLogging();
 
 const qc = new QueryClient({
   defaultOptions: {

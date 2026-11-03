@@ -1,21 +1,37 @@
-// Eye Lab scenes: Anatomy, DR stages (illustration), Coverage.
+// Eye Lab scenes: Anatomy, DR stages (illustration), Coverage. Each is scene content for the single Lab <Stage>;
+// switching mode swaps the content and re-aims the camera, never the canvas.
 import { Html, OrbitControls } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { analyse } from "../api/fixtures";
 import type { Grade } from "../api/types";
 import { drawFundus } from "../lib/fundusArt";
 import { EyeModel, PART_INFO, type PartName } from "./EyeModel";
 import { makeProjection, nerveDirection, POSTERIOR_POLE, type V3 } from "./projection";
-import { canvasTexture, Stage } from "./Stage";
+import { canvasTexture } from "./Stage";
+
+/** Place the shared camera for a scene when it mounts. Must render before that scene's OrbitControls. */
+export function CameraPreset({ position, fov, look = [0, 0, 0] }: { position: V3; fov: number; look?: V3 }) {
+  const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
+  useLayoutEffect(() => {
+    camera.position.set(...position);
+    camera.fov = fov;
+    camera.updateProjectionMatrix();
+    camera.lookAt(...look);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [camera]);
+  return null;
+}
 
 // ------------------------------------------------------------------ anatomy
-export function AnatomyScene({ explode, section, irisColor, className = "" }: { explode: number; section: number; irisColor: string; className?: string }) {
+export const ANATOMY_CAM = { position: [34, 14, 40] as V3, fov: 34 };
+export function AnatomyScene({ explode, section, irisColor }: { explode: number; section: number; irisColor: string }) {
   const [hover, setHover] = useState<{ p: PartName; at: THREE.Vector3 } | null>(null);
   const pupil = useRef(1.6);
   return (
-    <Stage className={className} camera={{ position: [34, 14, 40], fov: 34 }}>
+    <>
+      <CameraPreset {...ANATOMY_CAM} />
       <Breath pupil={pupil} />
       <group rotation={[0, -0.25, 0]}>
         <EyeModel
@@ -37,7 +53,7 @@ export function AnatomyScene({ explode, section, irisColor, className = "" }: { 
         </Html>
       )}
       <OrbitControls enablePan={false} minDistance={22} maxDistance={110} enableDamping />
-    </Stage>
+    </>
   );
 }
 
@@ -57,7 +73,7 @@ export const STAGE_TEXT: Record<Grade, { title: string; body: string }> = {
   4: { title: "Grade 4 · Proliferative DR", body: "Fragile new vessels grow from the disc or elsewhere and can bleed into the vitreous. Refer immediately." },
 };
 
-export function StagesScene({ grade, className = "" }: { grade: Grade; className?: string }) {
+export function StagesScene({ grade }: { grade: Grade }) {
   const tex = useMemo(() => {
     const a = analyse(4242 + grade * 101, { grade }, "OD", "macula", 45);
     const c = drawFundus({ ...a.art, nv: grade === 4 }, 1024);
@@ -66,22 +82,12 @@ export function StagesScene({ grade, className = "" }: { grade: Grade; className
   useEffect(() => () => tex.t.dispose(), [tex]);
   const proj = useMemo(() => makeProjection({ fovea: tex.lm.fovea, disc: tex.lm.od, fovDeg: 45 }), [tex]);
   return (
-    <Stage className={className} camera={{ position: [0, 0, 3], fov: 70 }} bloom={0.3}>
-      <LookAt target={[0, 0, -12]} />
+    <>
+      <CameraPreset position={[0, 0, 3]} fov={70} look={[0, 0, -12]} />
       <EyeModel eye="OD" hideFront showVitreous={false} pupil={2} retina={{ fundus: tex.t, projection: proj, showUnimaged: false }} />
       <OrbitControls target={[0, 0, -4]} enablePan={false} rotateSpeed={-0.35} minDistance={2} maxDistance={8} minPolarAngle={Math.PI / 2 - 0.5} maxPolarAngle={Math.PI / 2 + 0.5} minAzimuthAngle={-0.5} maxAzimuthAngle={0.5} />
-    </Stage>
+    </>
   );
-}
-
-function LookAt({ target }: { target: V3 }) {
-  const done = useRef(false);
-  useFrame(({ camera }) => {
-    if (done.current) return;
-    camera.lookAt(...target);
-    done.current = true;
-  });
-  return null;
 }
 
 // ------------------------------------------------------------------ coverage
@@ -129,21 +135,20 @@ export function coverageShare(dirs: V3[], half: number[], n = 20000): number {
   return covered / Math.max(1, inRetina);
 }
 
-export function CoverageScene({ k, className = "" }: { k: CoverageKey; className?: string }) {
+export function CoverageScene({ k }: { k: CoverageKey }) {
   const f = useMemo(() => coverageFields(k), [k]);
-  return (
-    <Stage className={className} camera={{ position: [26, 18, -40], fov: 34 }} bloom={0.3}>
-      <Spin />
-      <EyeModel eye="OD" only={["retina"]} showVitreous={false} retina={{ caps: { dirs: f.dirs, half: f.half, color: "#64D2FF" } }} />
-      <Html position={[0, 0, -14.5]} center><div className="pointer-events-none whitespace-nowrap rounded-full bg-black/60 px-2 py-0.5 text-[11px] text-white/80">posterior pole</div></Html>
-      <OrbitControls enablePan={false} minDistance={25} maxDistance={110} enableDamping />
-    </Stage>
-  );
-}
-
-function Spin() {
-  useFrame(({ scene }, dt) => {
-    scene.rotation.y += dt * 0.08;
+  const spin = useRef<THREE.Group>(null);
+  useFrame((_, dt) => {
+    if (spin.current) spin.current.rotation.y += dt * 0.08;
   });
-  return null;
+  return (
+    <>
+      <CameraPreset position={[26, 18, -40]} fov={34} />
+      <group ref={spin}>
+        <EyeModel eye="OD" only={["retina"]} showVitreous={false} retina={{ caps: { dirs: f.dirs, half: f.half, color: "#64D2FF" } }} />
+        <Html position={[0, 0, -14.5]} center><div className="pointer-events-none whitespace-nowrap rounded-full bg-black/60 px-2 py-0.5 text-[11px] text-white/80">posterior pole</div></Html>
+      </group>
+      <OrbitControls enablePan={false} minDistance={25} maxDistance={110} enableDamping />
+    </>
+  );
 }

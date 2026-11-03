@@ -85,13 +85,15 @@ export function GlassTabBar() {
               onClick={() => go(i)}
               whileTap={{ scale: 0.96 }}
               aria-current={active ? "page" : undefined}
+              aria-label={t.label}
+              title={t.to === "/queue" && count > 0 ? `${t.label} · ${count} awaiting review` : t.label}
               className={`relative z-10 flex h-[52px] flex-col items-center justify-center gap-1 rounded-full text-[11px] font-medium transition-colors ${active ? "text-white" : "text-l2 hover:text-white/85"}`}
               style={{ width: TAB_W, pointerEvents: dragging ? "none" : "auto" }}
             >
               <span className="relative">
                 <Icon className="h-[19px] w-[19px]" strokeWidth={active ? 2.3 : 1.8} />
                 {t.to === "/queue" && count > 0 && (
-                  <span className="absolute -right-3 -top-2 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-review px-1 text-[11px] font-bold text-black" aria-label={`${count} awaiting review`}>
+                  <span className="absolute -right-3 -top-2 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-review px-1 text-[11px] font-bold text-black" aria-hidden>
                     <Odometer value={count} />
                   </span>
                 )}

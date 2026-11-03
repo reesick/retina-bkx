@@ -11,7 +11,7 @@ export function Page({ children, className = "", wide }: { children: ReactNode; 
       initial="initial"
       animate="animate"
       exit="exit"
-      className={`mx-auto w-full px-6 pt-6 lg:px-8 ${wide ? "max-w-[1840px]" : "max-w-[1280px]"} ${className}`}
+      className={`mx-auto w-full px-6 pb-[140px] pt-6 lg:px-8 ${wide ? "max-w-[1840px]" : "max-w-[1280px]"} ${className}`}
     >
       {children}
     </motion.main>

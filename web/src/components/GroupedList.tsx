@@ -24,8 +24,8 @@ export function Row({
     <>
       {icon && <span className="mr-3 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-s2 text-white/80">{icon}</span>}
       <span className="min-w-0 flex-1">
-        <span className={`block truncate text-[16px] ${danger ? "text-urgent" : "text-white"}`}>{label}</span>
-        {sub && <span className="block truncate text-footnote text-l2">{sub}</span>}
+        <span className={`block break-words text-[16px] ${danger ? "text-urgent" : "text-white"}`}>{label}</span>
+        {sub && <span className="block break-words text-footnote leading-snug text-l2">{sub}</span>}
       </span>
       {value != null && <span className="ml-3 shrink-0 text-[15px] text-l2 num">{value}</span>}
       {right && <span className="ml-3 shrink-0">{right}</span>}

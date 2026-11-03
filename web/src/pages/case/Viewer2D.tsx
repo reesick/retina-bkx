@@ -36,6 +36,16 @@ const LABEL: Record<LayerKey, string> = {
   photo: "Photo", cam: "Attention · CNN", att: "Attention · ViT", les: "Lesions", landmarks: "Landmarks", macula: "Macula ring", unimaged: "Unimaged",
 };
 
+const TIP: Record<LayerKey, string> = {
+  photo: "Photo: the fundus photograph, cropped and resized, colours unchanged.",
+  cam: "Attention (CNN): heat map of the regions that pushed the CNN model's score up.",
+  att: "Attention (ViT): heat map of the regions the transformer model relied on.",
+  les: "Lesions: spots the AI marked as possible microaneurysms, haemorrhages and exudates.",
+  landmarks: "Landmarks: where the AI thinks the optic disc and the fovea (centre of vision) are.",
+  macula: "Macula ring: a circle one disc diameter around the fovea; exudates inside it raise a flag.",
+  unimaged: "Unimaged: greys out the retina outside the photographed field. Nothing there was checked.",
+};
+
 /** Image layers stacked in normalised space; used by the main view and the loupe. */
 function LayerStack({ image, layers, splitX, side }: { image: ImageResult; layers: ViewerLayers; splitX?: number; side?: "photo" | "layer" }) {
   const o = image.urls.overlays;
@@ -286,7 +296,7 @@ export function Viewer2D({
           <div className="glass num grid h-8 min-w-[48px] place-items-center rounded-full px-2 text-[12px]">{z.toFixed(1)}×</div>
           <button type="button" className="glass grid h-8 w-8 place-items-center rounded-full" onClick={() => zoomAt(1.6)} aria-label="Zoom in"><Plus className="h-4 w-4" /></button>
         </div>
-        <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-full bg-black/50 px-2.5 py-1 text-[11px] text-l2">Alt or hold still for the loupe</div>
+        <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-full bg-black/70 px-2.5 py-1 text-[11px] text-white/80">Alt or hold still for the loupe</div>
       </div>
 
       <LayerDock image={image} layers={layers} setLayers={setLayers} />
@@ -333,7 +343,7 @@ function LayerDock({ image, layers, setLayers }: { image: ImageResult; layers: V
   const opacityKey = (k: LayerKey): "cam" | "att" | "les" | "unimaged" | null => (k === "cam" || k === "att" || k === "les" || k === "unimaged" ? k : null);
   const [focus, setFocus] = useState<"cam" | "att" | "les" | "unimaged">("les");
   return (
-    <div className="glass rounded-[18px] p-2">
+    <div className="panel rounded-[18px] p-2">
       <div className="flex flex-wrap gap-1.5">
         {(Object.keys(LABEL) as LayerKey[]).map((k) => {
           const on = layers.on[k];
@@ -342,6 +352,7 @@ function LayerDock({ image, layers, setLayers }: { image: ImageResult; layers: V
               key={k}
               type="button"
               aria-pressed={on}
+              title={TIP[k]}
               onClick={() => { toggle(k); const ok = opacityKey(k); if (ok) setFocus(ok); }}
               className={`h-8 rounded-full px-3 text-[12px] font-medium transition-colors ${on ? "bg-white text-black" : "bg-white/[0.06] text-white/75 hover:bg-white/10"}`}
             >
@@ -352,6 +363,7 @@ function LayerDock({ image, layers, setLayers }: { image: ImageResult; layers: V
         <button
           type="button"
           aria-pressed={layers.split}
+          title="Split view: drag the handle to compare the plain photo with one layer"
           onClick={() => { sound.tick(); setLayers((l) => ({ ...l, split: !l.split })); }}
           className={`ml-auto flex h-8 items-center gap-1.5 rounded-full px-3 text-[12px] font-medium ${layers.split ? "bg-white text-black" : "bg-white/[0.06] text-white/75 hover:bg-white/10"}`}
         >
@@ -380,7 +392,7 @@ function LayerDock({ image, layers, setLayers }: { image: ImageResult; layers: V
           <>
             <span className="text-[12px] text-l2">Split layer</span>
             {(["cam", "att", "les"] as const).map((k) => (
-              <button key={k} type="button" onClick={() => setLayers((l) => ({ ...l, splitLayer: k }))} className={`h-7 rounded-full px-2.5 text-[12px] ${layers.splitLayer === k ? "bg-white/20 text-white" : "text-l2"}`}>{LABEL[k]}</button>
+              <button key={k} type="button" title={TIP[k]} onClick={() => setLayers((l) => ({ ...l, splitLayer: k }))} className={`h-7 rounded-full px-2.5 text-[12px] ${layers.splitLayer === k ? "bg-white/20 text-white" : "text-l2 hover:bg-white/10 hover:text-white"}`}>{LABEL[k]}</button>
             ))}
           </>
         ) : (

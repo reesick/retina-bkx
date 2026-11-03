@@ -4,6 +4,9 @@ import { Link } from "react-router-dom";
 import { useMoveReferral, useReferrals } from "../api/hooks";
 import type { ReferralStatus, ReferralUpdate, ReferralWithPatient } from "../api/types";
 import { Calendar, MapPin, MessageSquare } from "../components/icons";
+import { Send } from "lucide-react";
+import { DemoButton } from "../components/DemoButton";
+import { EmptyState } from "../components/EmptyState";
 import { Odometer } from "../components/Odometer";
 import { Page } from "../components/Page";
 import { Ring } from "../components/Ring";
@@ -15,6 +18,14 @@ import { sound } from "../lib/sound";
 import { useUI } from "../lib/store";
 
 const COLS: ReferralStatus[] = [...REFERRAL_COLUMNS, "not_completed"];
+const COL_HINT: Record<ReferralStatus, string> = {
+  issued: "Signed as Refer; no appointment yet.",
+  scheduled: "Appointment booked with a facility.",
+  attended: "The patient was seen.",
+  feedback: "The specialist's findings are back.",
+  closed: "Done; follow-up date set.",
+  not_completed: "Could not be completed; reason recorded.",
+};
 const isoIn = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
 
 export default function Referrals() {
@@ -59,7 +70,7 @@ export default function Referrals() {
 
   return (
     <Page wide>
-      <LargeTitle sub="From issued to closed. Drag a card one step to the right.">Referrals</LargeTitle>
+      <LargeTitle sub="Patients sent to a specialist. Drag a card to the next step when the appointment is booked, attended, or feedback arrives. Click a card to see its timeline.">Referrals</LargeTitle>
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div className="card flex items-center gap-4 p-5">
           <Ring value={s?.completed_rate ?? 0} size={84} stroke={7} color="#30D158">
@@ -73,6 +84,17 @@ export default function Referrals() {
       </section>
 
       {q.isError && <div className="mt-6"><ErrorState error={q.error} onRetry={() => void q.refetch()} /></div>}
+      {q.data && items.length === 0 && (
+        <div className="mt-8">
+          <EmptyState
+            icon={<Send className="h-6 w-6" />}
+            title="No referrals yet."
+            body="A referral is created when a clinician signs a case with the outcome Refer. It then moves through the columns below: issued, scheduled, attended, feedback, closed."
+            action={<DemoButton name="refer-soon" label="Try a referral demo case" />}
+            secondary={<Link to="/queue" className="btn-ghost h-11">Open the queue</Link>}
+          />
+        </div>
+      )}
       <LayoutGroup>
         <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           {COLS.map((c) => {
@@ -85,12 +107,16 @@ export default function Referrals() {
                 className={`min-h-[360px] rounded-card p-3 transition-colors ${tray ? "bg-[#140b0b]" : "bg-s1"}`}
                 style={{ boxShadow: hot === c ? "inset 0 0 0 1.5px rgba(255,255,255,0.6)" : tray ? "inset 0 0 0 0.5px rgba(255,69,58,0.25)" : "none" }}
               >
-                <div className="mb-3 flex items-center justify-between px-1">
-                  <span className={`text-eyebrow uppercase ${tray ? "text-urgent/80" : "text-l2"}`}>{REFERRAL_LABEL[c]}</span>
-                  <span className="num text-[13px] text-l3">{list.length}</span>
+                <div className="mb-3 px-1">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-eyebrow uppercase ${tray ? "text-urgent" : "text-white/85"}`}>{REFERRAL_LABEL[c]}</span>
+                    <span className="num text-[13px] text-l2">{list.length}</span>
+                  </div>
+                  <div className="mt-1 text-[12px] leading-snug text-l2">{COL_HINT[c]}</div>
                 </div>
                 <div className="space-y-2">
                   {q.isLoading && <Skeleton className="h-20 !rounded-[16px]" />}
+                  {q.data && list.length === 0 && <div className="rounded-[16px] border border-dashed border-white/10 px-3 py-4 text-center text-[12px] text-l2">Empty. Drop a card here.</div>}
                   {list.map((r) => (
                     <Card key={r.id} r={r} onOpen={() => setOpen(r)} onDragOver={(x, y) => setHot(colAt(x, y))} onDrop={(x, y) => drop(r, colAt(x, y))} />
                   ))}
@@ -164,13 +190,13 @@ function MoveSheet({ pending, onClose, onConfirm }: { pending: { r: ReferralWith
       <div className="space-y-4">
         {to === "scheduled" && (
           <>
-            <label className="block"><span className="mb-1.5 block text-[13px] text-l2">Facility</span><input className="input" value={facility} onChange={(e) => setFacility(e.target.value)} /></label>
+            <label className="block"><span className="mb-1.5 block text-[13px] text-l2">Facility</span><input className="input" value={facility} onChange={(e) => setFacility(e.target.value)} placeholder="e.g. District Eye Hospital" /></label>
             <label className="block"><span className="mb-1.5 block text-[13px] text-l2">Appointment date</span><input type="date" className="input num" value={date} onChange={(e) => setDate(e.target.value)} /></label>
           </>
         )}
         {to === "feedback" && (
           <>
-            <label className="block"><span className="mb-1.5 block text-[13px] text-l2">Specialist feedback</span><textarea className="input h-24 resize-none py-2.5" value={text} onChange={(e) => setText(e.target.value)} /></label>
+            <label className="block"><span className="mb-1.5 block text-[13px] text-l2">Specialist feedback</span><textarea className="input h-24 resize-none py-2.5" value={text} onChange={(e) => setText(e.target.value)} placeholder="What did the specialist find? e.g. Moderate NPDR, laser not needed" /></label>
             <label className="block"><span className="mb-1.5 block text-[13px] text-l2">Next follow-up</span><input type="date" className="input num" value={follow} onChange={(e) => setFollow(e.target.value)} /></label>
           </>
         )}
@@ -181,6 +207,7 @@ function MoveSheet({ pending, onClose, onConfirm }: { pending: { r: ReferralWith
           type="button"
           className="btn-white w-full"
           disabled={!valid}
+          title={valid ? undefined : "Fill in the required fields first"}
           onClick={() => {
             if (!to) return;
             const b: ReferralUpdate = { to, note: text.trim() };

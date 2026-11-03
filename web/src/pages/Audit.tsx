@@ -9,6 +9,8 @@ import { Page } from "../components/Page";
 import { Ring } from "../components/Ring";
 import { ErrorState, Skeleton } from "../components/Skeleton";
 import { LargeTitle } from "../components/TopBar";
+import { DemoButton } from "../components/DemoButton";
+import { EmptyState } from "../components/EmptyState";
 import { shortHash, shortTime } from "../lib/format";
 import { sound } from "../lib/sound";
 
@@ -52,8 +54,8 @@ export default function Audit() {
   return (
     <Page className="max-w-[900px]">
       <LargeTitle
-        sub="Every action is chained: each entry stores the SHA-256 of the one before."
-        right={<button type="button" className="btn-white" onClick={() => void verify()} disabled={running || !items.length}><ShieldCheck className="h-4 w-4" /> {running ? "Verifying…" : "Verify chain"}</button>}
+        sub="A tamper-evident record of everything done on this device: analyses, sign-offs, referral moves. Each entry stores the SHA-256 of the one before; press Verify chain to check nothing was edited."
+        right={<button type="button" className="btn-white" onClick={() => void verify()} disabled={running || !items.length} title={!items.length ? "Nothing to verify yet" : running ? "Verifying…" : "Re-check every hash in the chain"}><ShieldCheck className="h-4 w-4" /> {running ? "Verifying…" : "Verify chain"}</button>}
       >
         Audit
       </LargeTitle>
@@ -76,7 +78,7 @@ export default function Audit() {
       </AnimatePresence>
       {q.isLoading && <div className="space-y-2">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-14" />)}</div>}
       {q.isError && <ErrorState error={q.error} onRetry={() => void q.refetch()} />}
-      {q.data && !items.length && <div className="py-16 text-center text-l2">No audit entries yet.</div>}
+      {q.data && !items.length && <EmptyState icon={<ShieldCheck className="h-6 w-6" />} title="No audit entries yet." body="Every screening, analysis, sign-off and referral move is written here as it happens. Start a screening or a demo case and its entries will appear." action={<Link to="/screen/new" className="btn-white">Start a screening</Link>} secondary={<DemoButton name="routine" className="btn-ghost h-11" />} />}
       <div ref={list} className="relative">
         <ol className="relative ml-3 border-l border-white/10" style={{ borderLeftWidth: 0.5 }}>
           {items.map((a, i) => {
@@ -93,10 +95,10 @@ export default function Audit() {
                     <span className="text-[13px] text-l2">{a.actor}</span>
                     <span className="num ml-auto text-[12px] text-l3">{shortTime(a.at)}</span>
                   </div>
-                  <div className="num mt-0.5 flex flex-wrap gap-x-4 text-[11px] text-l3">
+                  <div className="num mt-0.5 flex flex-wrap gap-x-4 text-[12px] text-l2">
                     <span>prev {shortHash(a.prev_hash, 12)}</span>
                     <span className="text-white/60">hash {shortHash(a.hash, 12)}</span>
-                    {a.encounter_id && <Link to={`/case/${a.encounter_id}`} className="hover:text-white">{a.encounter_id}</Link>}
+                    {a.encounter_id && <Link to={`/case/${a.encounter_id}`} className="link" title="Open this case">case {a.encounter_id}</Link>}
                   </div>
                 </div>
               </motion.li>
