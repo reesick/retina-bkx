@@ -1,4 +1,4 @@
-# Retinitry handoff: start here
+﻿# Retinitry handoff: start here
 
 This folder is the complete handoff for Retinitry as of **03 Nov 2026** (git `07540dc` plus this folder).
 It is written for someone who has never seen the project. It says plainly what works, what is weak and what is missing.
@@ -27,6 +27,7 @@ which part of the retina was never photographed. Everything runs on one Windows 
 | [06_DECISIONS_AND_RISKS.md](06_DECISIONS_AND_RISKS.md) | Why things were built this way; licensing, clinical, privacy and technical risks |
 | [07_NEXT_STEPS.md](07_NEXT_STEPS.md) | Prioritised backlog for whoever continues |
 | [08_DEMO_SCRIPT.md](08_DEMO_SCRIPT.md) | A 3–5 minute demo that shows every feature with the bundled cases |
+| [09_VERIFICATION_REPORT.md](09_VERIFICATION_REPORT.md) | What was re-run to verify the project, the problems that audit found (image overlap between datasets, eval vs app differences), and which original requirements are not done |
 
 The design documents written before the build are one level up in `docs/` (`01_PRODUCT` … `07_UI_QA`). Where those and this
 folder disagree, **this folder is current**.

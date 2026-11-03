@@ -5145,5 +5145,39 @@
     "hash_run1": "dc1c6727dcaa9b54",
     "hash_run2": "dc1c6727dcaa9b54",
     "method": "same image analysed twice by the CPU pipeline; result JSON hashed"
+  },
+  "leakage_check": {
+    "method": "32x32 normalised-grey image match (RMSE < 0.15) between grading-test images and lesion-model training images",
+    "scope": "affects only the triage simulation (lesion rules R1a/R5); grader AUROC/sensitivity/specificity are unaffected",
+    "idrid": {
+      "overlapping_images": 45,
+      "n_after_removal": 471,
+      "referable_routed_routine": 1,
+      "referable_total": 241,
+      "human_review_rate": 0.6942675159235668,
+      "coverage": 0.3057324840764331,
+      "auto_sens": 0.9848484848484849,
+      "full_set": {
+        "referable_routed_routine": 3,
+        "referable_total": 286,
+        "human_review_rate": 0.6957364341085271,
+        "coverage": 0.30426356589147285
+      }
+    },
+    "ddr": {
+      "overlapping_images": 63,
+      "n_after_removal": 4042,
+      "referable_routed_routine": 64,
+      "referable_total": 1653,
+      "human_review_rate": 0.4235526966848095,
+      "coverage": 0.6087074094104922,
+      "auto_sens": 0.8982511923688394,
+      "full_set": {
+        "referable_routed_routine": 66,
+        "referable_total": 1690,
+        "human_review_rate": 0.42509135200974424,
+        "coverage": 0.6065442936951316
+      }
+    }
   }
 }

@@ -1,4 +1,4 @@
-# 01 · Status: what is done, what is weak, what is missing
+﻿# 01 · Status: what is done, what is weak, what is missing
 
 Legend:
 - **Verified** means an automated test or a measured number backs it.
@@ -87,7 +87,8 @@ Legend:
 5. **Quality model**: AUROC 0.80 on real DeepDRiD labels; only 49% of poor photos are rejected outright (80% are flagged as
    usable-with-limitations or inadequate). A large "usable" band (109 of 400) pushes cases to human review.
 6. **The ViT model is 329 MB** and dominates load time and memory.
-7. **Training is not bit-reproducible** (cuDNN autotuning enabled for speed). Inference is bit-reproducible.
+7. **Dataset image overlap and eval/app differences** were found in the final audit. They do not inflate the reported results; details in [09_VERIFICATION_REPORT.md](09_VERIFICATION_REPORT.md).
+8. **Training is not bit-reproducible** (cuDNN autotuning enabled for speed). Inference is bit-reproducible.
 
 ## 4. Known bugs / rough edges (open)
 
