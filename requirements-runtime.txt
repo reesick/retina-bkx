@@ -1,0 +1,11 @@
+# Everything needed to RUN Retinitry (no GPU, no PyTorch). Training needs requirements.txt + CUDA torch instead.
+# Pinned to the versions the app was built and tested with (03 Nov 2026, Python 3.11).
+fastapi==0.162.0
+uvicorn==0.54.0
+sqlalchemy==2.1.6
+python-multipart==0.0.33
+pydantic==2.14.2
+onnxruntime==1.31.1
+opencv-python-headless==5.0.0.93
+numpy==2.4.6
+reportlab==5.1.0

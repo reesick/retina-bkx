@@ -1,15 +1,27 @@
+# environments and caches (recreated by the start scripts)
 .venv/
 __pycache__/
 *.pyc
-/logs/
+.pytest_cache/
+node_modules/
+.env
+
+# large, regenerable working data, NOT shipped (see docs/handoff/04_RUNBOOK.md)
+# datasets (~2 GB), rebuilt by ml/data/fetch.py
 /data/
+# PyTorch checkpoints and prediction caches (~1 GB)
 /runs/
-*.onnx
+# runtime and training logs
+/logs/
+# this machine's cases, reviews and audit log: patient data, never commit
+server/storage/
 *.pt
 *.pth
 *.ckpt
-node_modules/
-web/dist/
-server/storage/
 .install*
-.env
+*.onnx.tmp
+
+# assembled .onnx models are ignored; they ship as git-sized parts in server/models/parts/
+*.onnx
+
+# web/dist IS committed so the app runs without Node.js (node_modules is ignored above)

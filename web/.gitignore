@@ -1,4 +1,4 @@
 node_modules/
-dist/
 .tmp/
 *.log
+# dist/ is committed on purpose (the app runs without Node.js); rebuild with `npm run build` after UI changes

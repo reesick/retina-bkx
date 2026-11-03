@@ -8,8 +8,17 @@ URL="http://127.0.0.1:8765"
 
 if [ -x "$ROOT/.venv/bin/python" ]; then PY="$ROOT/.venv/bin/python"
 elif [ -x "$ROOT/.venv/Scripts/python.exe" ]; then PY="$ROOT/.venv/Scripts/python.exe"
-else echo "Python environment not found in $ROOT/.venv. Create it first (see scripts/setup_env.ps1)." >&2; exit 1
+else
+  echo "First run: creating .venv with the runtime packages (no GPU needed)..."
+  BASE="$(command -v python3.11 || command -v python3 || true)"
+  [ -n "$BASE" ] || { echo "Python 3.11 not found. Install it and re-run." >&2; exit 1; }
+  "$BASE" -m venv "$ROOT/.venv"
+  PY="$ROOT/.venv/bin/python"
+  "$PY" -m pip install --upgrade pip --quiet
+  "$PY" -m pip install -r "$ROOT/requirements-runtime.txt"
 fi
+
+"$PY" "$ROOT/scripts/models.py" assemble || { echo "Model files missing or corrupt." >&2; exit 1; }
 
 if [ ! -f "$ROOT/web/dist/index.html" ]; then
   if command -v npm >/dev/null 2>&1; then

@@ -1,0 +1,115 @@
+{
+  "part_size": 47185920,
+  "models": {
+    "quality": {
+      "file": "quality.onnx",
+      "sha256": "10f1a746d4ebe707639afc5623ecb91d6cda3b3e874b389e1c87b3ec3fb6459f",
+      "bytes": 16020229,
+      "parts": [
+        {
+          "file": "quality.onnx.part00",
+          "sha256": "10f1a746d4ebe707639afc5623ecb91d6cda3b3e874b389e1c87b3ec3fb6459f",
+          "bytes": 16020229
+        }
+      ]
+    },
+    "grader_cnn": {
+      "file": "grader_cnn.onnx",
+      "sha256": "c9cdc84f28bdf6c35ee47e79b12932dce2dc52659a5dcd13a21b1dd1908723c8",
+      "bytes": 42736768,
+      "parts": [
+        {
+          "file": "grader_cnn.onnx.part00",
+          "sha256": "c9cdc84f28bdf6c35ee47e79b12932dce2dc52659a5dcd13a21b1dd1908723c8",
+          "bytes": 42736768
+        }
+      ]
+    },
+    "grader_vit": {
+      "file": "grader_vit.onnx",
+      "sha256": "56aac9327b6be7214881568717a9a967c948ae41dce277143d48ea6f8ce3ba2b",
+      "bytes": 345361068,
+      "parts": [
+        {
+          "file": "grader_vit.onnx.part00",
+          "sha256": "4b46b2466dede5e596bf65ac232c50f82430baa6d2c2ed4f66bcffe1c9a3360c",
+          "bytes": 47185920
+        },
+        {
+          "file": "grader_vit.onnx.part01",
+          "sha256": "d15ec964117b8a99b80b6eb347cc14ebe0971c3ec00bba548fd0739a9f7f39a3",
+          "bytes": 47185920
+        },
+        {
+          "file": "grader_vit.onnx.part02",
+          "sha256": "9a128149de993d3bd381da30015da35faaf671e11af0e407f4660ac7c5f200bd",
+          "bytes": 47185920
+        },
+        {
+          "file": "grader_vit.onnx.part03",
+          "sha256": "2e38a4500572992832ab718aada25efc342b9e6aebffbc0b204cbbce9b0d49a4",
+          "bytes": 47185920
+        },
+        {
+          "file": "grader_vit.onnx.part04",
+          "sha256": "06fb6d54f46d32c4a2b2d1d2837354abba983f1d6256e09658c7e9bcfed7c931",
+          "bytes": 47185920
+        },
+        {
+          "file": "grader_vit.onnx.part05",
+          "sha256": "3007abab794dd901971fc9ba3643b4a105d29f2d94fbd0be89bada51d5bbfcf1",
+          "bytes": 47185920
+        },
+        {
+          "file": "grader_vit.onnx.part06",
+          "sha256": "d21e52b73d3b71938b51089e1ee257dada5d9c495077bce6075ee8f04d7dc940",
+          "bytes": 47185920
+        },
+        {
+          "file": "grader_vit.onnx.part07",
+          "sha256": "99b28a35db705828b9b0d61c46ff8064346641f80e5c9b3601db2804e16111bd",
+          "bytes": 15059628
+        }
+      ]
+    },
+    "lesions": {
+      "file": "lesions.onnx",
+      "sha256": "06024a8d322b9d1b0d95b3b91dc51cd32db304854d2875317f81ca3e00c99a3b",
+      "bytes": 50591516,
+      "parts": [
+        {
+          "file": "lesions.onnx.part00",
+          "sha256": "e19447ac783b87448609437981ac06522f8ba1696750d66dba4b9edd5ccfb98b",
+          "bytes": 47185920
+        },
+        {
+          "file": "lesions.onnx.part01",
+          "sha256": "f1233762c67c1eea917136a130ad9abefcdabf944f621c33dd0c0a116d2cb1c2",
+          "bytes": 3405596
+        }
+      ]
+    },
+    "landmarks": {
+      "file": "landmarks.onnx",
+      "sha256": "d0cd4028affe84d12927f437c2c7c504b091f7c81f9deb9af95dc18441cd033b",
+      "bytes": 97742875,
+      "parts": [
+        {
+          "file": "landmarks.onnx.part00",
+          "sha256": "0e3e2ed737ca4b5667dd12300b9215041ba55144fca394e36f128515af337cc1",
+          "bytes": 47185920
+        },
+        {
+          "file": "landmarks.onnx.part01",
+          "sha256": "e5f6bd2fe2e17e82eafc84f53d9ea760267ca3d408d6d47f9ab39597b07c1448",
+          "bytes": 47185920
+        },
+        {
+          "file": "landmarks.onnx.part02",
+          "sha256": "d78e5329ec98e2d4e71f7b21af0349cfec61356960ad9198d0ceb6faca5219f8",
+          "bytes": 3371035
+        }
+      ]
+    }
+  }
+}
